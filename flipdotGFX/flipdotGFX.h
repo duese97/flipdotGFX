@@ -20,17 +20,6 @@ typedef struct
 } flipdot_hw_info_t;
 
 
-typedef enum
-{
-    FLIPDOT_SET         = 'X', // steady state set
-    FLIPDOT_RESET       = ' ', // steady state reset
-
-    /* Only for internal use */
-    FLIPDOT_NEW_SET     = 'S', // to be flipped from reset -> set
-    FLIPDOT_NEW_RESET   = 'R', // to be flipped from set -> reset
-} flipdot_states_t;
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
