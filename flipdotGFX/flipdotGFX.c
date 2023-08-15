@@ -4,6 +4,7 @@
 #include <flipdotGFX.h>
 #include <characterROM.h>
 
+#define SGN(_x) ((_x) < 0 ? -1 : ((_x) > 0 ? 1 : 0))
 
 typedef enum
 {
@@ -23,8 +24,7 @@ static int curr_cursor_x;
 static int curr_cursor_y;
 
 /* Local functions/helpers declarations */
-static bool flipdot_gfx_write_framebuf(void);
-
+static bool flipdot_gfx_check_rewrite(char* buff);
 
 /* Exported functions */
 
@@ -49,17 +49,29 @@ bool flipdot_gfx_init(flipdot_hw_info_t* ptr)
     return true;
 }
 
-// force a clear of the entire screen
-bool flipdot_gfx_clear(void)
+// do a set or clear of the entire screen, if forced all dots will be flipped regardless of old state
+bool flipdot_gfx_fill(bool state, bool force)
 {
-    memset(hw_info.frame_buf, FLIPDOT_NEW_RESET, hw_info.columns * hw_info.rows);
-    return flipdot_gfx_write_framebuf();
-}
-
-// force a set of the entire screen
-bool flipdot_gfx_set_all(void)
-{
-    memset(hw_info.frame_buf, FLIPDOT_NEW_SET, hw_info.columns * hw_info.rows);
+    if (force) // set new elements anyway
+    {
+        memset(hw_info.frame_buf, state ? FLIPDOT_NEW_SET : FLIPDOT_NEW_RESET, hw_info.columns * hw_info.rows);
+    }
+    else
+    {
+        // iterate over entire framebuffer
+        for (int idx = 0; idx < hw_info.columns * hw_info.rows; idx++)
+        {
+            // check if element really has to be set
+            if (state && hw_info.frame_buf[idx] != FLIPDOT_SET)
+            {
+                 hw_info.frame_buf[idx] = FLIPDOT_NEW_SET;
+            }
+            else if (!state && hw_info.frame_buf[idx] != FLIPDOT_RESET)
+            {
+                hw_info.frame_buf[idx] = FLIPDOT_NEW_RESET;
+            }
+        }
+    }
     return flipdot_gfx_write_framebuf();
 }
 
@@ -104,8 +116,89 @@ void flipdot_gfx_set_cursor(int row, int col)
     }
 }
 
+void flipdot_gfx_set_cursor_relative(int row, int col)
+{
+    curr_cursor_y += row;
+    curr_cursor_x += col;
+
+    /* Make sure cursor is within bounds of frame */
+    if (curr_cursor_y >= hw_info.rows)
+    {
+        curr_cursor_y = hw_info.rows - 1;
+    }
+    else if (curr_cursor_y < 0)
+    {
+        curr_cursor_y = 0;
+    }
+
+    if (curr_cursor_x >=hw_info.columns )
+    {
+        curr_cursor_x = hw_info.columns  - 1;
+    }
+    else if (curr_cursor_x < 0)
+    {
+        curr_cursor_x = 0;
+    }
+}
+
+void flipdot_gfx_draw_line(int x0, int y0, int x1, int y1)
+{
+    // bresenham algorithm, stolen from: http://fredericgoset.ovh/mathematiques/courbes/en/bresenham_line.html
+    int dx = x1 - x0, dy = y1 - y0;
+    int incX = SGN(dx), incY = SGN(dy);
+    dx = abs(dx);
+    dy = abs(dy);
+
+    if (dy == 0) // horizontal line
+    {
+        for (int x = x0; x != x1 + incX; x += incX)
+        {
+             hw_info.frame_buf[y0 * hw_info.columns + x] = FLIPDOT_NEW_SET;
+        }
+    }
+    else if (dx == 0) // vertical line
+    {
+        for (int y = y0; y != y1 + incY; y += incY)
+        {
+            hw_info.frame_buf[y * hw_info.columns + x0] = FLIPDOT_NEW_SET;
+        }
+    }
+    else if (dx >= dy) // more horizontal than vertical
+    {
+        int slope = 2 * dy, error = -dx, errorInc = -2 * dx, y = y0;
+
+        for (int x = x0; x != x1 + incX; x += incX)
+        {
+            hw_info.frame_buf[y * hw_info.columns + x] = FLIPDOT_NEW_SET;
+            error += slope;
+
+            if (error >= 0)
+            {
+                y += incY;
+                error += errorInc;
+            }
+        }
+    }
+    else // more vertical than horizontal
+    {
+        int slope = 2 * dx, error = -dy, errorInc = -2 * dy, x = x0;
+
+        for (int y = y0; y != y1 + incY; y += incY)
+        {
+            hw_info.frame_buf[y * hw_info.columns + x] = FLIPDOT_NEW_SET;
+            error += slope;
+
+            if (error >= 0)
+            {
+                x += incX;
+                error += errorInc;
+            }
+        }
+    }
+}
+
 // write a rectangular bitmap into the buffer
-void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y)
+void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool move_cursor)
 {
     /* Iterate over the framebuffer left to right and top to down */   
     for (int current_y = curr_cursor_y; (current_y < curr_cursor_y + len_y) && (current_y < hw_info.rows); current_y++)
@@ -136,7 +229,10 @@ void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y)
         }
     }
 
-    //flipdot_gfx_dbg_print_framebuf();
+    if (move_cursor)
+    {
+        flipdot_gfx_set_cursor_relative(0, len_x);
+    }
 }
 
 void flipdot_gfx_write_5x7_line(char* format)
@@ -145,59 +241,18 @@ void flipdot_gfx_write_5x7_line(char* format)
     while(format[idx] != '\0') // iterate as long as chars are there
     {
         const char* glyph = get_5x7_bitmap(format[idx]); // obtain bitmap
-        flipdot_gfx_write_bitmap(glyph, 5, 7); // write it
-        flipdot_gfx_set_cursor(curr_cursor_y, curr_cursor_x + 5 + 1); // advance cursor by one glyph + a space
+        flipdot_gfx_write_bitmap(glyph, 5, 7, true); // write it
+
+        // in case letters are not aligned by "monospace" grid, write a vertical blank line
+        glyph = get_1x7_blanking();
+        flipdot_gfx_write_bitmap(glyph, 1, 7, true); // will also advance cursor by a space
 
         idx++; // jump to next char
     }
-    
-    flipdot_gfx_write_framebuf();
-}
-
-
-/* Private functions */
-
-// checks if a rewrite is required, depending on write scheme
-static bool flipdot_gfx_check_rewrite(char* buff)
-{
-    int size; // to remember how many elements need to be checked
-    bool refresh_required = false;
-
-    // find out size
-    if (hw_info.write_dot_cb)
-    {
-        size = 1;
-    }
-    else if (hw_info.write_column_cb)
-    {
-        size = hw_info.columns;
-    }
-    else
-    {
-        size = hw_info.rows;
-    }
-
-    for (int idx = 0; idx < size; idx++)
-    {
-        // check if anything new has to be set
-        if (buff[idx] == FLIPDOT_NEW_SET)
-        {
-            buff[idx] = FLIPDOT_SET;
-            refresh_required |= true;
-        }
-        // check if anything new has to be reset
-        else if (buff[idx] == FLIPDOT_NEW_RESET)
-        {
-            buff[idx] = FLIPDOT_RESET;
-            refresh_required |= true;
-        }
-    }
-
-    return refresh_required;
 }
 
 // sets new framebuffer contents
-static bool flipdot_gfx_write_framebuf(void)
+bool flipdot_gfx_write_framebuf(void)
 {
     bool ret = true; // to remember overall success
 
@@ -251,5 +306,49 @@ static bool flipdot_gfx_write_framebuf(void)
         }
     }
 
+    // output result for debugging
+    flipdot_gfx_dbg_print_framebuf();
+
     return ret;
+}
+
+/* Private functions */
+
+// checks if a rewrite is required, depending on write scheme
+static bool flipdot_gfx_check_rewrite(char* buff)
+{
+    int size; // to remember how many elements need to be checked
+    bool refresh_required = false;
+
+    // find out size
+    if (hw_info.write_dot_cb)
+    {
+        size = 1;
+    }
+    else if (hw_info.write_column_cb)
+    {
+        size = hw_info.columns;
+    }
+    else
+    {
+        size = hw_info.rows;
+    }
+
+    for (int idx = 0; idx < size; idx++)
+    {
+        // check if anything new has to be set
+        if (buff[idx] == FLIPDOT_NEW_SET)
+        {
+            buff[idx] = FLIPDOT_SET;
+            refresh_required |= true;
+        }
+        // check if anything new has to be reset
+        else if (buff[idx] == FLIPDOT_NEW_RESET)
+        {
+            buff[idx] = FLIPDOT_RESET;
+            refresh_required |= true;
+        }
+    }
+
+    return refresh_required;
 }

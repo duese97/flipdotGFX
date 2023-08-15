@@ -906,6 +906,22 @@ const char* bitmaps_5x7_0_9[] =
     &bitmap_5x7_9[0][0]
 };
 
+/* Special "blanking" line which has to be inserted in between chars, if they are not aligned*/
+static const char bitmap_1x7_space[7][1] =
+{
+    { ' ' },
+    { ' ' },
+    { ' ' },
+    { ' ' },
+    { ' ' },
+    { ' ' },
+    { ' ' }
+};
+
+const char* get_1x7_blanking(void)
+{
+    return &bitmap_1x7_space[0][0];
+}
 
 // returns appropriate bitmap for a given (printable) ascii
 const char* get_5x7_bitmap(char c)
