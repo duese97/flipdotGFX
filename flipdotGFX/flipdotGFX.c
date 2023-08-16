@@ -4,21 +4,36 @@
 #include <flipdotGFX.h>
 #include <characterROM.h>
 
+/* Local macros */
 #define SGN(_x) ((_x) < 0 ? -1 : ((_x) > 0 ? 1 : 0))
 
 
+//************************************************************************
+// Local variables
+//************************************************************************
 static flipdot_hw_info_t hw_info;   // local copy of given HW info struct
 
 // current printing position
 static int curr_cursor_x;
 static int curr_cursor_y;
 
-/* Local functions/helpers declarations */
+
+//************************************************************************
+// Local functions/helpers declarations
+//************************************************************************
 static bool flipdot_gfx_check_rewrite(char* buff);
 
-/* Exported functions */
 
-// init this library
+//************************************************************************
+// Exported functions
+//************************************************************************
+
+/** @brief Init this library
+ *  @details provide driver callbacks, sizes and framebuffer
+ *
+ *  @param ptr the character to print
+ *  @return true if success, false otherwise
+ */
 bool flipdot_gfx_init(flipdot_hw_info_t* ptr)
 {
     if (ptr->write_dot_cb == NULL && ptr->write_column_cb == NULL && ptr->write_row_cb == NULL)
@@ -39,7 +54,13 @@ bool flipdot_gfx_init(flipdot_hw_info_t* ptr)
     return true;
 }
 
-// do a set or clear of the entire screen, if forced all dots will be flipped regardless of old state
+/** @brief do a set or clear of the entire screen
+ *
+ *  @param state true to set all dots, false to reset them
+ *  @param force true if all dots shall be written regardless of old state, false if only
+ *               required dots shall be flipped
+ *  @return true if success, false otherwise
+ */
 bool flipdot_gfx_fill(bool state, bool force)
 {
     if (force) // set new elements anyway
@@ -65,7 +86,9 @@ bool flipdot_gfx_fill(bool state, bool force)
     return flipdot_gfx_write_framebuf();
 }
 
-// show output via console without actually having to connect a display
+/** @brief Show the framebuffer via provided print callback to a console etc.
+ *  @details Can be used for debugging, if you don't actually have a display
+ */
 void flipdot_gfx_dbg_print_framebuf(void)
 {
     if (hw_info.print == NULL) // check if print function provided
@@ -96,7 +119,11 @@ void flipdot_gfx_dbg_print_framebuf(void)
 
 }
 
-// set top right upper corner of whatever shall be printed next
+/** @brief set top right upper corner of whatever shall be printed next
+ *
+ *  @param row absolute y coordinate (0 based)
+ *  @param col absolute x coordinate (0 based)
+ */
 void flipdot_gfx_set_cursor(int row, int col)
 {
     if (row < hw_info.rows && col < hw_info.columns)
@@ -106,6 +133,11 @@ void flipdot_gfx_set_cursor(int row, int col)
     }
 }
 
+/** @brief relative set top right upper corner of whatever shall be printed next
+ *
+ *  @param row relative y travel
+ *  @param col relative x travel
+ */
 void flipdot_gfx_set_cursor_relative(int row, int col)
 {
     curr_cursor_y += row;
@@ -131,10 +163,17 @@ void flipdot_gfx_set_cursor_relative(int row, int col)
     }
 }
 
-// x0, y0 -> start coordinates (0 based), x1, y1 end coordinates
+/** @brief draw a line with the bresenham algorithm
+ *  @details stolen from: http://fredericgoset.ovh/mathematiques/courbes/en/bresenham_line.html
+ *           all coordinates 0 based
+ *
+ *  @param x0 start x
+ *  @param y0 start y
+ *  @param x1 end x
+ *  @param y1 end y
+ */
 void flipdot_gfx_draw_line(int x0, int y0, int x1, int y1)
 {
-    // bresenham algorithm, stolen from: http://fredericgoset.ovh/mathematiques/courbes/en/bresenham_line.html
     int dx = x1 - x0, dy = y1 - y0;
     int incX = SGN(dx), incY = SGN(dy);
     dx = abs(dx);
@@ -188,7 +227,13 @@ void flipdot_gfx_draw_line(int x0, int y0, int x1, int y1)
     }
 }
 
-// write a rectangular bitmap into the buffer
+/** @brief write a rectangular bitmap into the buffer
+ *
+ *  @param bitmap pointer to bitmap which shall be written
+ *  @param len_x length of bitmap in x direction
+ *  @param len_y length of bitmap in y direction
+ *  @param move_cursor true if cursor is automatically advanced by len_x
+ */
 void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool move_cursor)
 {
     /* Iterate over the framebuffer left to right and top to down */   
@@ -226,6 +271,10 @@ void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
     }
 }
 
+/** @brief write a 5x7 char to the buffer
+ *
+ *  @param format NULL terminated string to write
+ */
 void flipdot_gfx_write_5x7_line(char* format)
 {
     int idx = 0;
@@ -242,7 +291,10 @@ void flipdot_gfx_write_5x7_line(char* format)
     }
 }
 
-// sets new framebuffer contents
+/** @brief sets new framebuffer contents
+ *
+ *  @return true if success, false otherwise
+ */
 bool flipdot_gfx_write_framebuf(void)
 {
     bool ret = true; // to remember overall success
@@ -316,9 +368,16 @@ bool flipdot_gfx_write_framebuf(void)
     return ret;
 }
 
-/* Private functions */
 
-// checks if a rewrite is required, depending on write scheme
+//************************************************************************
+// Private functions
+//************************************************************************
+
+/** @brief checks if a rewrite is required, depending on write scheme
+ *
+ *  @param buff pointer to single dot/row or column buffer
+ *  @return true if rewrite is needed, false otherwise
+ */
 static bool flipdot_gfx_check_rewrite(char* buff)
 {
     int size; // to remember how many elements need to be checked

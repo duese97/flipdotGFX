@@ -918,12 +918,21 @@ static const char bitmap_1x7_space[7][1] =
     { ' ' }
 };
 
+/** @brief get a 1x7 blank line bitmap
+ *  @details might be used to fill space in between characters
+ * 
+ *  @return pointer to bitmap
+ */
 const char* get_1x7_blanking(void)
 {
     return &bitmap_1x7_space[0][0];
 }
 
-// returns appropriate bitmap for a given (printable) ascii
+/** @brief get appropriate 5x7 bitmap for a given (printable) ASCII
+ *
+ *  @param c character where a bitmap is desired
+ *  @return pointer to bitmap, "?" if unsupported
+ */
 const char* get_5x7_bitmap(char c)
 {
     char target = c;
