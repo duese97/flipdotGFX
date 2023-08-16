@@ -6,16 +6,6 @@
 
 #define SGN(_x) ((_x) < 0 ? -1 : ((_x) > 0 ? 1 : 0))
 
-typedef enum
-{
-    FLIPDOT_SET         = 'X', // steady state set
-    FLIPDOT_RESET       = ' ', // steady state reset
-
-    /* Only for internal use */
-    FLIPDOT_NEW_SET     = 'S', // to be flipped from reset -> set
-    FLIPDOT_NEW_RESET   = 'R', // to be flipped from set -> reset
-} flipdot_states_t;
-
 
 static flipdot_hw_info_t hw_info;   // local copy of given HW info struct
 
@@ -141,6 +131,7 @@ void flipdot_gfx_set_cursor_relative(int row, int col)
     }
 }
 
+// x0, y0 -> start coordinates (0 based), x1, y1 end coordinates
 void flipdot_gfx_draw_line(int x0, int y0, int x1, int y1)
 {
     // bresenham algorithm, stolen from: http://fredericgoset.ovh/mathematiques/courbes/en/bresenham_line.html
@@ -309,6 +300,19 @@ bool flipdot_gfx_write_framebuf(void)
     // output result for debugging
     flipdot_gfx_dbg_print_framebuf();
 
+    // set buffer to "steady state", so that driver callbacks could utilize meta states previously
+    for (int idx = 0; idx < hw_info.columns * hw_info.rows; idx++)
+    {
+        if (hw_info.frame_buf[idx] == FLIPDOT_NEW_SET)
+        {
+            hw_info.frame_buf[idx] = FLIPDOT_SET;
+        }
+        else if (hw_info.frame_buf[idx] == FLIPDOT_NEW_RESET)
+        {
+            hw_info.frame_buf[idx] = FLIPDOT_RESET;
+        }
+    }
+
     return ret;
 }
 
@@ -318,7 +322,6 @@ bool flipdot_gfx_write_framebuf(void)
 static bool flipdot_gfx_check_rewrite(char* buff)
 {
     int size; // to remember how many elements need to be checked
-    bool refresh_required = false;
 
     // find out size
     if (hw_info.write_dot_cb)
@@ -334,21 +337,14 @@ static bool flipdot_gfx_check_rewrite(char* buff)
         size = hw_info.rows;
     }
 
-    for (int idx = 0; idx < size; idx++)
+    for (int idx = 0; idx < size; idx++) // step over buffer
     {
-        // check if anything new has to be set
-        if (buff[idx] == FLIPDOT_NEW_SET)
+        // check if anything new has to be set or reset
+        if (buff[idx] == FLIPDOT_NEW_SET || buff[idx] == FLIPDOT_NEW_RESET)
         {
-            buff[idx] = FLIPDOT_SET;
-            refresh_required |= true;
-        }
-        // check if anything new has to be reset
-        else if (buff[idx] == FLIPDOT_NEW_RESET)
-        {
-            buff[idx] = FLIPDOT_RESET;
-            refresh_required |= true;
+            return true;
         }
     }
 
-    return refresh_required;
+    return false; // nothing found
 }

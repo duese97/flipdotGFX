@@ -3,6 +3,16 @@
 
 #include <stdbool.h>
 
+typedef enum
+{
+    FLIPDOT_SET         = 'X', // steady state set
+    FLIPDOT_RESET       = ' ', // steady state reset
+
+    /* Meta states */
+    FLIPDOT_NEW_SET     = 'S', // to be flipped from reset -> set
+    FLIPDOT_NEW_RESET   = 'R', // to be flipped from set -> reset
+} flipdot_states_t;
+
 typedef struct
 {
     int rows; // number of available rows
