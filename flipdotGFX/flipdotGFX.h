@@ -36,16 +36,22 @@ extern "C" {
 
 bool flipdot_gfx_init(flipdot_hw_info_t* ptr);
 
+// writing and clearing
 bool flipdot_gfx_fill(bool state, bool force);
+bool flipdot_gfx_write_framebuf(void);
 
+// text and bitmap stuff
 void flipdot_gfx_set_cursor(int row, int col);
 void flipdot_gfx_set_cursor_relative(int row, int col);
-void flipdot_gfx_dbg_print_framebuf(void);
 void flipdot_gfx_write_5x7_line(char* format);
 void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool move_cursor);
+
+// basic shapes
+void flipdot_gfx_draw_circle(int x0, int y0, int r);
 void flipdot_gfx_draw_line(int x0, int y0, int x1, int y1);
 
-bool flipdot_gfx_write_framebuf(void);
+// debug
+void flipdot_gfx_dbg_print_framebuf(void);
 
 #ifdef __cplusplus
 }

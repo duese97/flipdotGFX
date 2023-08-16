@@ -163,8 +163,73 @@ void flipdot_gfx_set_cursor_relative(int row, int col)
     }
 }
 
-/** @brief draw a line with the bresenham algorithm
- *  @details stolen from: http://fredericgoset.ovh/mathematiques/courbes/en/bresenham_line.html
+
+/** @brief draw a circle with the midpoint circle drawing algorithm
+ *  @details all coordinates 0 based
+ *
+ *  @param x0 start x
+ *  @param y0 start y
+ *  @param r radius
+ */
+void flipdot_gfx_draw_circle(int x0, int y0, int r)
+{
+    int x = r, y = 0, E = -r;
+    int x_p, y_p;
+
+    int mirror[4][2] = 
+    {
+        {1, 1},
+        {-1, 1},
+        {1, -1},
+        {-1, -1}
+    };
+
+    while(y <= x)
+    {
+        /* Draw all 8 octants by mirroring along x and y axis */
+        for (int op = 0; op < 4; op++)
+        {
+            x_p = x0 + mirror[op][0] * x;
+            y_p = y0 + mirror[op][1] * y;
+
+            if (x_p < 0 || y_p < 0)
+            {
+                continue; // negative values can be ruled out immediately
+            }
+
+            if (x_p < hw_info.columns && y_p < hw_info.rows)
+            {
+                hw_info.frame_buf[y_p * hw_info.columns + x_p] = FLIPDOT_NEW_SET;
+            }
+            
+            x_p = x0 + mirror[op][0] * y;
+            y_p = y0 + mirror[op][1] * x;
+
+            if (x_p < hw_info.columns && y_p < hw_info.rows)
+            {
+                hw_info.frame_buf[y_p * hw_info.columns + x_p] = FLIPDOT_NEW_SET;
+            }
+/*
+            char printbuf[32];
+            int num = snprintf(printbuf, sizeof(printbuf), "x:%d y:%d\n", x_p, y_p);
+            hw_info.print(printbuf, num); // output to console
+            */
+        }
+
+        E += (2 * y + 1);
+        y++;
+
+        if (E >= 0)
+        {
+            E -= (2 * x - 1);
+            x--;
+        }
+    };
+}
+
+
+/** @brief draw a line with the bresenham line drawing algorithm
+ *  @details stolen :-) from: http://fredericgoset.ovh/mathematiques/courbes/en/bresenham_line.html
  *           all coordinates 0 based
  *
  *  @param x0 start x
