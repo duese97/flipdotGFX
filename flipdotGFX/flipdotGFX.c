@@ -17,6 +17,8 @@ static flipdot_hw_info_t hw_info;   // local copy of given HW info struct
 static int curr_cursor_x;
 static int curr_cursor_y;
 
+// if true, drawing will be be inverted
+static bool print_inverted = false;
 
 //************************************************************************
 // Local functions/helpers declarations
@@ -52,6 +54,25 @@ bool flipdot_gfx_init(flipdot_hw_info_t* ptr)
     hw_info = *ptr; // copy values into RAM
 
     return true;
+}
+
+/** @brief Draw a single point to the framebuffer
+ *
+ *  @param x absolute x position
+ *  @param y absolute y position
+ */
+void flipdot_gfx_draw_point(int x, int y)
+{
+    hw_info.frame_buf[y * hw_info.columns + x] = print_inverted ? FLIPDOT_NEW_RESET : FLIPDOT_NEW_SET;
+};
+
+/** @brief Set behaviour how text and bitmaps shall be printed
+ *
+ *  @param new_mode if false, a write is done as a set. if true, writing will mean a reset of a dot
+ */
+void flipdot_gfx_set_printmode(bool new_mode)
+{
+    print_inverted = new_mode;
 }
 
 /** @brief do a set or clear of the entire screen
@@ -199,7 +220,7 @@ void flipdot_gfx_draw_circle(int x0, int y0, int r)
 
             if (x_p < hw_info.columns && y_p < hw_info.rows)
             {
-                hw_info.frame_buf[y_p * hw_info.columns + x_p] = FLIPDOT_NEW_SET;
+                flipdot_gfx_draw_point(x_p, y_p);
             }
             
             x_p = x0 + mirror[op][0] * y;
@@ -207,13 +228,8 @@ void flipdot_gfx_draw_circle(int x0, int y0, int r)
 
             if (x_p < hw_info.columns && y_p < hw_info.rows)
             {
-                hw_info.frame_buf[y_p * hw_info.columns + x_p] = FLIPDOT_NEW_SET;
+                flipdot_gfx_draw_point(x_p, y_p);
             }
-/*
-            char printbuf[32];
-            int num = snprintf(printbuf, sizeof(printbuf), "x:%d y:%d\n", x_p, y_p);
-            hw_info.print(printbuf, num); // output to console
-            */
         }
 
         E += (2 * y + 1);
@@ -248,14 +264,14 @@ void flipdot_gfx_draw_line(int x0, int y0, int x1, int y1)
     {
         for (int x = x0; x != x1 + incX; x += incX)
         {
-             hw_info.frame_buf[y0 * hw_info.columns + x] = FLIPDOT_NEW_SET;
+            flipdot_gfx_draw_point(x, y0);
         }
     }
     else if (dx == 0) // vertical line
     {
         for (int y = y0; y != y1 + incY; y += incY)
         {
-            hw_info.frame_buf[y * hw_info.columns + x0] = FLIPDOT_NEW_SET;
+            flipdot_gfx_draw_point(x0, y);
         }
     }
     else if (dx >= dy) // more horizontal than vertical
@@ -264,7 +280,7 @@ void flipdot_gfx_draw_line(int x0, int y0, int x1, int y1)
 
         for (int x = x0; x != x1 + incX; x += incX)
         {
-            hw_info.frame_buf[y * hw_info.columns + x] = FLIPDOT_NEW_SET;
+            flipdot_gfx_draw_point(x, y);
             error += slope;
 
             if (error >= 0)
@@ -280,7 +296,7 @@ void flipdot_gfx_draw_line(int x0, int y0, int x1, int y1)
 
         for (int y = y0; y != y1 + incY; y += incY)
         {
-            hw_info.frame_buf[y * hw_info.columns + x] = FLIPDOT_NEW_SET;
+            flipdot_gfx_draw_point(x, y);
             error += slope;
 
             if (error >= 0)
@@ -311,7 +327,12 @@ void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
             // index new char which shall be written to buffer, but within coordinates of bitmap
             char bmp_char = bitmap[(current_y-curr_cursor_y) * len_x + (current_x-curr_cursor_x)];
 
-            if (*frame_ptr == FLIPDOT_NEW_SET || *hw_info.frame_buf == FLIPDOT_NEW_RESET) // skip if the cell already has to be set
+            if (print_inverted) // switch around logic in case inverted mode is active
+            {
+                bmp_char = bmp_char == FLIPDOT_SET ? FLIPDOT_RESET : FLIPDOT_SET;
+            }
+
+            if (*frame_ptr == FLIPDOT_NEW_SET || *frame_ptr == FLIPDOT_NEW_RESET) // skip if the cell already has to be set
             {
                 continue;
             }
@@ -415,7 +436,7 @@ bool flipdot_gfx_write_framebuf(void)
     }
 
     // output result for debugging
-    flipdot_gfx_dbg_print_framebuf();
+    // flipdot_gfx_dbg_print_framebuf();
 
     // set buffer to "steady state", so that driver callbacks could utilize meta states previously
     for (int idx = 0; idx < hw_info.columns * hw_info.rows; idx++)
@@ -429,6 +450,9 @@ bool flipdot_gfx_write_framebuf(void)
             hw_info.frame_buf[idx] = FLIPDOT_RESET;
         }
     }
+
+    // output result for debugging
+    flipdot_gfx_dbg_print_framebuf();
 
     return ret;
 }
