@@ -12,6 +12,10 @@ static const char bitmap_5x7_space[7][5]=
     {' ', ' ', ' ', ' ', ' '}
 };
 
+
+//************************************************************************
+// USE_SYMBOLS1_5x7
+//************************************************************************
 static const char bitmap_5x7_excl_mark[7][5]=
 {
     {' ', ' ', 'X', ' ', ' '},
@@ -23,7 +27,7 @@ static const char bitmap_5x7_excl_mark[7][5]=
     {' ', ' ', 'X', ' ', ' '}
 };
 
-static const char bitmap_5x7_quote[7][5]=
+static const char bitmap_5x7_double_quote[7][5]=
 {
     {' ', 'X', ' ', 'X', ' '},
     {' ', 'X', ' ', 'X', ' '},
@@ -78,20 +82,109 @@ static const char bitmap_5x7_and[7][5]=
     {' ', 'X', 'X', ' ', 'X'}
 };
 
-/*
-static const char bitmap_5x7_[7][5]=
+static const char bitmap_5x7_single_quote[7][5]=
 {
-    {' ', ' ', ' ', ' ', ' '},
-    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
     {' ', ' ', ' ', ' ', ' '},
     {' ', ' ', ' ', ' ', ' '},
     {' ', ' ', ' ', ' ', ' '},
     {' ', ' ', ' ', ' ', ' '},
     {' ', ' ', ' ', ' ', ' '}
 };
-*/
+
+static const char bitmap_5x7_open_bracket[7][5]=
+{
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', 'X', ' ', ' ', ' '},
+    {'X', ' ', ' ', ' ', ' '},
+    {'X', ' ', ' ', ' ', ' '},
+    {'X', ' ', ' ', ' ', ' '},
+    {' ', 'X', ' ', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '}
+};
+
+static const char bitmap_5x7_closing_bracket[7][5]=
+{
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', 'X', ' ', ' '}
+};
+
+static const char bitmap_5x7_asterisk[7][5]=
+{
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {'X', ' ', 'X', ' ', 'X'},
+    {' ', 'X', 'X', 'X', ' '},
+    {'X', ' ', 'X', ' ', 'X'},
+    {' ', ' ', 'X', ' ', ' '}
+};
+
+static const char bitmap_5x7_plus[7][5]=
+{
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {'X', 'X', 'X', 'X', 'X'},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '}
+};
+
+static const char bitmap_5x7_comma[7][5]=
+{
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', 'X', 'X', ' '},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', 'X', ' ', ' '}
+};
+
+static const char bitmap_5x7_minus[7][5]=
+{
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {'X', 'X', 'X', 'X', 'X'},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '}
+};
+
+static const char bitmap_5x7_dot[7][5]=
+{
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', 'X', 'X', ' ', ' '},
+    {' ', 'X', 'X', ' ', ' '}
+};
+
+static const char bitmap_5x7_slash[7][5]=
+{
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', 'X', ' ', ' ', ' '},
+    {'X', ' ', ' ', ' ', ' '}
+};
 
 
+//************************************************************************
+// USE_NUMBERS_5x7
+//************************************************************************
 static const char bitmap_5x7_0[7][5]=
 {
     {' ', 'X', 'X', 'X', ' '},
@@ -202,6 +295,10 @@ static const char bitmap_5x7_9[7][5]=
     {' ', 'X', 'X', ' ', ' '}
 };
 
+
+//************************************************************************
+// USE_SYMBOLS2_5x7
+//************************************************************************
 static const char bitmap_5x7_colon[7][5]=
 {
     {' ', ' ', ' ', ' ', ' '},
@@ -213,18 +310,49 @@ static const char bitmap_5x7_colon[7][5]=
     {' ', ' ', ' ', ' ', ' '}
 };
 
-/*
-static const char bitmap_5x7_[7][5]=
+static const char bitmap_5x7_semicolon[7][5]=
+{
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', 'X', 'X', ' '},
+    {' ', ' ', 'X', 'X', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', 'X', 'X', ' '},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', 'X', ' ', ' '}
+};
+
+static const char bitmap_5x7_less_than[7][5]=
+{
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', 'X', ' ', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', ' ', ' ', 'X'}
+};
+
+static const char bitmap_5x7_equal[7][5]=
 {
     {' ', ' ', ' ', ' ', ' '},
     {' ', ' ', ' ', ' ', ' '},
+    {'X', 'X', 'X', 'X', 'X'},
     {' ', ' ', ' ', ' ', ' '},
-    {' ', ' ', ' ', ' ', ' '},
-    {' ', ' ', ' ', ' ', ' '},
+    {'X', 'X', 'X', 'X', 'X'},
     {' ', ' ', ' ', ' ', ' '},
     {' ', ' ', ' ', ' ', ' '}
 };
-*/
+
+static const char bitmap_5x7_greater_than[7][5]=
+{
+    {' ', 'X', ' ', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', 'X', ' ', ' ', ' '}
+};
 
 static const char bitmap_5x7_questionmark[7][5]=
 {
@@ -237,6 +365,21 @@ static const char bitmap_5x7_questionmark[7][5]=
     {' ', ' ', 'X', ' ', ' '}
 };
 
+static const char bitmap_5x7_at[7][5]=
+{
+    {' ', 'X', 'X', 'X', ' '},
+    {'X', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', 'X', 'X', ' ', 'X'},
+    {'X', ' ', 'X', ' ', 'X'},
+    {'X', ' ', 'X', ' ', 'X'},
+    {' ', 'X', 'X', 'X', ' '}
+};
+
+
+//************************************************************************
+// USE_UPPERCASE_5x7
+//************************************************************************
 static const char bitmap_5x7_A[7][5]=
 {
     {' ', ' ', 'X', ' ', ' '},
@@ -523,6 +666,69 @@ static const char bitmap_5x7_Z[7][5]=
     {'X', 'X', 'X', 'X', 'X'}
 };
 
+
+//************************************************************************
+// USE_SYMBOLS3_5x7
+//************************************************************************
+static const char bitmap_5x7_square_bracket_open[7][5]=
+{
+    {'X', 'X', 'X', ' ', ' '},
+    {'X', ' ', ' ', ' ', ' '},
+    {'X', ' ', ' ', ' ', ' '},
+    {'X', ' ', ' ', ' ', ' '},
+    {'X', ' ', ' ', ' ', ' '},
+    {'X', ' ', ' ', ' ', ' '},
+    {'X', 'X', 'X', ' ', ' '}
+};
+
+static const char bitmap_5x7_backslash[7][5]=
+{
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {'X', ' ', ' ', ' ', ' '},
+    {' ', 'X', ' ', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', ' ', ' ', 'X'}
+};
+
+static const char bitmap_5x7_square_bracket_closing[7][5]=
+{
+    {' ', ' ', 'X', 'X', 'X'},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', 'X', 'X', 'X'}
+};
+
+static const char bitmap_5x7_superscript[7][5]=
+{
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', 'X', ' ', 'X', ' '},
+    {'X', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '}
+};
+
+static const char bitmap_5x7_underscore[7][5]=
+{
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {' ', ' ', ' ', ' ', ' '},
+    {'X', 'X', 'X', 'X', 'X'}
+};
+
+
+//************************************************************************
+// USE_LOWERCASE_5x7
+//************************************************************************
 static const char bitmap_5x7_a[7][5]=
 {
     {' ', ' ', ' ', ' ', ' '},
@@ -555,7 +761,6 @@ static const char bitmap_5x7_c[7][5]=
     {'X', ' ', ' ', ' ', 'X'},
     {' ', 'X', 'X', 'X', ' '}
 };
-
 
 static const char bitmap_5x7_d[7][5]=
 {
@@ -810,56 +1015,97 @@ static const char bitmap_5x7_z[7][5]=
     {'X', 'X', 'X', 'X', 'X'}
 };
 
-/*
-static const char bitmap_5x7_[7][5]=
+
+//************************************************************************
+// USE_SYMBOLS4_5x7
+//************************************************************************
+static const char bitmap_5x7_open_brace[7][5]=
+{
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', 'X', ' ', ' ', ' '},
+    {' ', 'X', ' ', ' ', ' '},
+    {'X', ' ', ' ', ' ', ' '},
+    {' ', 'X', ' ', ' ', ' '},
+    {' ', 'X', ' ', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '}
+};
+
+static const char bitmap_5x7_pipe[7][5]=
+{
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', 'X', ' ', ' '}
+};
+
+static const char bitmap_5x7_closing_brace[7][5]=
+{
+    {' ', ' ', 'X', ' ', ' '},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', ' ', ' ', 'X'},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', ' ', 'X', ' '},
+    {' ', ' ', 'X', ' ', ' '}
+};
+
+static const char bitmap_5x7_tilde[7][5]=
 {
     {' ', ' ', ' ', ' ', ' '},
     {' ', ' ', ' ', ' ', ' '},
-    {' ', ' ', ' ', ' ', ' '},
-    {' ', ' ', ' ', ' ', ' '},
+    {' ', 'X', 'X', ' ', 'X'},
+    {'X', ' ', ' ', 'X', ' '},
     {' ', ' ', ' ', ' ', ' '},
     {' ', ' ', ' ', ' ', ' '},
     {' ', ' ', ' ', ' ', ' '}
 };
-*/
+
+
 const char* bitmaps_5x7_symbols1[]=
 {
     &bitmap_5x7_excl_mark[0][0],
-    &bitmap_5x7_quote[0][0],
+    &bitmap_5x7_double_quote[0][0],
     &bitmap_5x7_hash[0][0],
     &bitmap_5x7_dollar[0][0],
     &bitmap_5x7_percent[0][0],
     &bitmap_5x7_and[0][0],
+    &bitmap_5x7_single_quote[0][0],
+    &bitmap_5x7_open_bracket[0][0],
+    &bitmap_5x7_closing_bracket[0][0],
+    &bitmap_5x7_asterisk[0][0],
+    &bitmap_5x7_plus[0][0],
+    &bitmap_5x7_comma[0][0],
+    &bitmap_5x7_minus[0][0],
+    &bitmap_5x7_dot[0][0],
+    &bitmap_5x7_slash[0][0]
 };
 
-const char* bitmaps_5x7_a_z[] =
+const char* bitmaps_5x7_0_9[] =
 {
-    &bitmap_5x7_a[0][0],
-    &bitmap_5x7_b[0][0],
-    &bitmap_5x7_c[0][0],
-    &bitmap_5x7_d[0][0],
-    &bitmap_5x7_e[0][0],
-    &bitmap_5x7_f[0][0],
-    &bitmap_5x7_g[0][0],
-    &bitmap_5x7_h[0][0],
-    &bitmap_5x7_i[0][0],
-    &bitmap_5x7_j[0][0],
-    &bitmap_5x7_k[0][0],
-    &bitmap_5x7_l[0][0],
-    &bitmap_5x7_m[0][0],
-    &bitmap_5x7_n[0][0],
-    &bitmap_5x7_o[0][0],
-    &bitmap_5x7_p[0][0],
-    &bitmap_5x7_q[0][0],
-    &bitmap_5x7_r[0][0],
-    &bitmap_5x7_s[0][0],
-    &bitmap_5x7_t[0][0],
-    &bitmap_5x7_u[0][0],
-    &bitmap_5x7_v[0][0],
-    &bitmap_5x7_w[0][0],
-    &bitmap_5x7_x[0][0],
-    &bitmap_5x7_y[0][0],
-    &bitmap_5x7_z[0][0]
+    &bitmap_5x7_0[0][0],
+    &bitmap_5x7_1[0][0],
+    &bitmap_5x7_2[0][0],
+    &bitmap_5x7_3[0][0],
+    &bitmap_5x7_4[0][0],
+    &bitmap_5x7_5[0][0],
+    &bitmap_5x7_6[0][0],
+    &bitmap_5x7_7[0][0],
+    &bitmap_5x7_8[0][0],
+    &bitmap_5x7_9[0][0]
+};
+
+const char* bitmaps_5x7_symbols2[] =
+{
+    &bitmap_5x7_colon[0][0],
+    &bitmap_5x7_semicolon[0][0],
+    &bitmap_5x7_less_than[0][0],
+    &bitmap_5x7_equal[0][0],
+    &bitmap_5x7_greater_than[0][0],
+    &bitmap_5x7_questionmark[0][0],
+    &bitmap_5x7_at[0][0]
 };
 
 const char* bitmaps_5x7_A_Z[] =
@@ -892,19 +1138,53 @@ const char* bitmaps_5x7_A_Z[] =
     &bitmap_5x7_Z[0][0]
 };
 
-const char* bitmaps_5x7_0_9[] =
+const char* bitmaps_5x7_symbols3[] =
 {
-    &bitmap_5x7_0[0][0],
-    &bitmap_5x7_1[0][0],
-    &bitmap_5x7_2[0][0],
-    &bitmap_5x7_3[0][0],
-    &bitmap_5x7_4[0][0],
-    &bitmap_5x7_5[0][0],
-    &bitmap_5x7_6[0][0],
-    &bitmap_5x7_7[0][0],
-    &bitmap_5x7_8[0][0],
-    &bitmap_5x7_9[0][0]
+    &bitmap_5x7_square_bracket_open[0][0],
+    &bitmap_5x7_backslash[0][0],
+    &bitmap_5x7_square_bracket_closing[0][0],
+    &bitmap_5x7_superscript[0][0],
+    &bitmap_5x7_underscore[0][0]
 };
+
+const char* bitmaps_5x7_a_z[] =
+{
+    &bitmap_5x7_a[0][0],
+    &bitmap_5x7_b[0][0],
+    &bitmap_5x7_c[0][0],
+    &bitmap_5x7_d[0][0],
+    &bitmap_5x7_e[0][0],
+    &bitmap_5x7_f[0][0],
+    &bitmap_5x7_g[0][0],
+    &bitmap_5x7_h[0][0],
+    &bitmap_5x7_i[0][0],
+    &bitmap_5x7_j[0][0],
+    &bitmap_5x7_k[0][0],
+    &bitmap_5x7_l[0][0],
+    &bitmap_5x7_m[0][0],
+    &bitmap_5x7_n[0][0],
+    &bitmap_5x7_o[0][0],
+    &bitmap_5x7_p[0][0],
+    &bitmap_5x7_q[0][0],
+    &bitmap_5x7_r[0][0],
+    &bitmap_5x7_s[0][0],
+    &bitmap_5x7_t[0][0],
+    &bitmap_5x7_u[0][0],
+    &bitmap_5x7_v[0][0],
+    &bitmap_5x7_w[0][0],
+    &bitmap_5x7_x[0][0],
+    &bitmap_5x7_y[0][0],
+    &bitmap_5x7_z[0][0]
+};
+
+const char* bitmaps_5x7_symbols4[] =
+{
+    &bitmap_5x7_open_brace[0][0],
+    &bitmap_5x7_pipe[0][0],
+    &bitmap_5x7_closing_brace[0][0],
+    &bitmap_5x7_tilde[0][0]
+};
+
 
 /* Special "blanking" line which has to be inserted in between chars, if they are not aligned*/
 static const char bitmap_1x7_space[7][1] =
@@ -975,16 +1255,44 @@ const char* get_5x7_bitmap(char c)
     }
 #endif // USE_LOWERCASE_5x7
 
-    else if (target == ' ')
+    if (target == ' ')
     {
         return &bitmap_5x7_space[0][0];
     }
-    else if (target >= '!' && target <= '&')
+
+#ifdef USE_SYMBOLS1_5x7
+    if (target >= '!' && target <= '/')
     {
         target -= '!';
         return bitmaps_5x7_symbols1[target];
     }
-    else // either unsupported or an actual question mark :)
+#endif // USE_SYMBOLS1_5x7
+
+#ifdef USE_SYMBOLS2_5x7
+    if (target >= ':' && target <= '@')
+    {
+        target -= ':';
+        return bitmaps_5x7_symbols2[target];
+    }
+#endif // USE_SYMBOLS2_5x7
+
+#ifdef USE_SYMBOLS3_5x7
+    if (target >= '[' && target <= '_')
+    {
+        target -= '[';
+        return bitmaps_5x7_symbols3[target];
+    }
+#endif // USE_SYMBOLS3_5x7
+
+#ifdef USE_SYMBOLS4_5x7
+    if (target >= '{' && target <= '~')
+    {
+        target -= '{';
+        return bitmaps_5x7_symbols4[target];
+    }
+#endif // USE_SYMBOLS4_5x7
+
+    else // unsupported
     {
         return &bitmap_5x7_questionmark[0][0];
     }
