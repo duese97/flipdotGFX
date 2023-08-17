@@ -17,6 +17,9 @@ static flipdot_hw_info_t hw_info;   // local copy of given HW info struct
 static int curr_cursor_x;
 static int curr_cursor_y;
 
+// to avoid having to multiple rows * columns over and over
+static int num_dots;
+
 // if true, drawing will be be inverted
 static bool print_inverted = false;
 
@@ -52,6 +55,9 @@ bool flipdot_gfx_init(flipdot_hw_info_t* ptr)
     }
 
     hw_info = *ptr; // copy values into RAM
+
+    // determine number of dots used
+    num_dots = hw_info.rows * hw_info.columns;
 
     return true;
 }
@@ -95,12 +101,12 @@ bool flipdot_gfx_fill(bool state, bool force)
 {
     if (force) // set new elements anyway
     {
-        memset(hw_info.frame_buf, state ? FLIPDOT_NEW_SET : FLIPDOT_NEW_RESET, hw_info.columns * hw_info.rows);
+        memset(hw_info.frame_buf, state ? FLIPDOT_NEW_SET : FLIPDOT_NEW_RESET, num_dots);
     }
     else
     {
         // iterate over entire framebuffer
-        for (int idx = 0; idx < hw_info.columns * hw_info.rows; idx++)
+        for (int idx = 0; idx < num_dots; idx++)
         {
             // check if element really has to be set
             if (state && hw_info.frame_buf[idx] != FLIPDOT_SET)
@@ -339,11 +345,7 @@ void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
                 bmp_char = bmp_char == FLIPDOT_SET ? FLIPDOT_RESET : FLIPDOT_SET;
             }
 
-            if (*frame_ptr == FLIPDOT_NEW_SET || *frame_ptr == FLIPDOT_NEW_RESET) // skip if the cell already has to be set
-            {
-                continue;
-            }
-            else if (*frame_ptr == bmp_char) // skip if the dot already has the proper state
+            if (*frame_ptr == bmp_char) // skip if the dot already has the proper state
             {
                 continue;
             }
@@ -354,6 +356,11 @@ void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
             else if (*frame_ptr == FLIPDOT_RESET && bmp_char == FLIPDOT_SET) // change state from reset -> set
             {
                 *frame_ptr = FLIPDOT_NEW_SET;
+            }
+            // something else previously wrote here, overwrite it again
+            else if (*frame_ptr == FLIPDOT_NEW_SET || *frame_ptr == FLIPDOT_NEW_RESET)
+            {
+                *frame_ptr = bmp_char == FLIPDOT_SET ? FLIPDOT_NEW_SET : FLIPDOT_NEW_RESET;
             }
         }
     }
@@ -391,6 +398,22 @@ void flipdot_gfx_write_5x7_line(char* format)
 bool flipdot_gfx_write_framebuf(void)
 {
     bool ret = true; // to remember overall success
+
+    // if pointer given, check if state has actually changed through multiple subsequent write/clears
+    if (hw_info.old_frame_buff)
+    {
+        for (int idx = 0; idx < num_dots; idx++)
+        {
+            if (hw_info.frame_buf[idx] == FLIPDOT_NEW_SET && hw_info.old_frame_buff[idx] == FLIPDOT_SET)
+            {
+                hw_info.frame_buf[idx] = FLIPDOT_SET; // no set required
+            }
+            else if (hw_info.frame_buf[idx] == FLIPDOT_NEW_RESET && hw_info.old_frame_buff[idx] == FLIPDOT_RESET)
+            {
+                hw_info.frame_buf[idx] = FLIPDOT_RESET; // no reset required
+            }
+        }
+    }
 
     if (hw_info.write_column_cb)
     {
@@ -443,7 +466,7 @@ bool flipdot_gfx_write_framebuf(void)
     }
 
     // output result for debugging
-    // flipdot_gfx_dbg_print_framebuf();
+    //flipdot_gfx_dbg_print_framebuf();
 
     // set buffer to "steady state", so that driver callbacks could utilize meta states previously
     for (int idx = 0; idx < hw_info.columns * hw_info.rows; idx++)
@@ -455,6 +478,12 @@ bool flipdot_gfx_write_framebuf(void)
         else if (hw_info.frame_buf[idx] == FLIPDOT_NEW_RESET)
         {
             hw_info.frame_buf[idx] = FLIPDOT_RESET;
+        }
+
+        // if pointer given, remember state from scratchpad
+        if (hw_info.old_frame_buff)
+        {
+            hw_info.old_frame_buff[idx] = hw_info.frame_buf[idx];
         }
     }
 

@@ -21,6 +21,9 @@ typedef struct
     // hold current state of flipdot and for use as scratchpad, pointer to buffer which is rows x columns sized
     char* frame_buf;
 
+    // optional, if given use to hold the old framebuffer state
+    char* old_frame_buff;
+
     /* hw abstraction, */
     bool (*write_dot_cb)(int row, int col, char state);
     bool (*write_column_cb)(int col, char* states);
