@@ -13,8 +13,28 @@ A small and simple "graphics" library for flipdot displays. You can draw your ow
 
 
 # Functions
-- ```flipdot_gfx_init```
-- ```flipdot_gfx_dbg_print_framebuf``` : Output current print buffer to console. Example usage where a 28 x 19 flipdot is simulated:
+Small overview over all public functions:
+- ```flipdot_gfx_init```: Setup available columns, rows, driving scheme etc.
+- ```flipdot_gfx_set_printmode```: Decide if a print shall equal a set or a reset of a respective dot
+- ```flipdot_gfx_fill```: Fill the entire display with a set or reset pattern
+- ```flipdot_gfx_write_framebuf```: Must be called when all frame contents are setup. Will then utilize provided callbacks to build the frame.
+- ```flipdot_gfx_set_cursor``` and ```flipdot_gfx_set_cursor_relative```: Useful for text/bitmap printing, set top right starting corner
+- ```flipdot_gfx_write_5x7_line```: Write a ASCII string with the 5x7 monospace font
+- ```flipdot_gfx_write_bitmap```: Write an arbitrary (user created) bitmap. It must be setup like this:
+```
+static const char double_point_2x7[7][2] =
+{
+  {' ', ' '},
+  {'X', 'X'},
+  {'X', 'X'},
+  {' ', ' '},
+  {'X', 'X'},
+  {'X', 'X'},
+  {' ', ' '}
+};
+```
+- ```flipdot_gfx_draw_point```,```flipdot_gfx_draw_circle``` and ```flipdot_gfx_draw_line```: Basic geometric shapes
+- ```flipdot_gfx_dbg_print_framebuf```: Output current print buffer to console. Example usage where a 28 x 19 flipdot is simulated:
 ```
 ----------------------------
 
@@ -38,5 +58,28 @@ A small and simple "graphics" library for flipdot displays. You can draw your ow
 
 ----------------------------
 ```
+# Driver usage
+You have to provide your own driver functions and hand them over to the library. This is one in the init struct, with the members
+```
+    bool (*write_dot_cb)(int row, int col, char state);
+    bool (*write_column_cb)(int col, char* states);
+    bool (*write_row_cb)(int row, char* states);
+```
+The Parameter state/states points to the data to be written.
+There are four values for this state:
+- 'R' means the respective dot has to be freshly reset 
+- 'S' means the dot has to be freshly set
+- ' ' means dot is already reset, can be skipped
+- 'X' means the dot is set, no need to drive it again
+
+For a row-wise driving this looks something like this:
+```
+      X          R S  X
+```
+In C-style syntax the "states" pointer would point to this equivalent structure:
+```
+states = {' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'R', ' ', 'S', ' ', ' ', 'X'};
+```
 
 # Example Usage
+An example implementation for an ESP32 with the arduino framework is provided in main.cpp. Some text is displayed as well as a very basic clock, where only the seconds hand is shown.

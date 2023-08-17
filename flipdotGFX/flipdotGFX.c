@@ -63,7 +63,16 @@ bool flipdot_gfx_init(flipdot_hw_info_t* ptr)
  */
 void flipdot_gfx_draw_point(int x, int y)
 {
-    hw_info.frame_buf[y * hw_info.columns + x] = print_inverted ? FLIPDOT_NEW_RESET : FLIPDOT_NEW_SET;
+    char* buff = &hw_info.frame_buf[y * hw_info.columns + x];
+    flipdot_states_t new_state = print_inverted ? FLIPDOT_NEW_RESET : FLIPDOT_NEW_SET;
+
+    // check if a write is needed
+    if ((*buff == FLIPDOT_SET && new_state == FLIPDOT_NEW_RESET) ||
+        (*buff == FLIPDOT_RESET && new_state == FLIPDOT_NEW_SET) ||
+        (*buff != new_state)) // overwrite old state
+    {
+        *buff = new_state;
+    }
 };
 
 /** @brief Set behaviour how text and bitmaps shall be printed
@@ -117,27 +126,25 @@ void flipdot_gfx_dbg_print_framebuf(void)
         return;
     }
 
-    char data[hw_info.columns + 1]; // print buffer for adding newline
+    char separator[hw_info.columns];
+    char newline = '\n';
+    memset(separator, '-', hw_info.columns);
     
     // print top edge
-    memset(data, '-', hw_info.columns);
-    data[hw_info.columns] = '\n';
-    hw_info.print(data, hw_info.columns + 1); // output to console
+    hw_info.print(separator, hw_info.columns);
+    hw_info.print(&newline, 1);
 
+    // show all rows
     for (int row = 0; row < hw_info.rows; row++)
     {
-        // copy over data and make printable via terminator
-        memcpy(data, &hw_info.frame_buf[row * hw_info.columns], hw_info.columns);
-        data[hw_info.columns] = '\n';
-
-        hw_info.print(data, hw_info.columns + 1); // output to console
+        // copy over data
+        hw_info.print(&hw_info.frame_buf[row * hw_info.columns], hw_info.columns);
+        hw_info.print(&newline, 1);
     }
     
     // print bottom edge
-    memset(data, '-', hw_info.columns);
-    data[hw_info.columns] = '\n';
-    hw_info.print(data, hw_info.columns + 1); // output to console
-
+    hw_info.print(separator, hw_info.columns);
+    hw_info.print(&newline, 1);
 }
 
 /** @brief set top right upper corner of whatever shall be printed next
