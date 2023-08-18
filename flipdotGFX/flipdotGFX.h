@@ -3,6 +3,12 @@
 
 #include <stdbool.h>
 
+
+//************************************************************************
+// Exported macros and enums
+//************************************************************************
+#define FLIPDOT_SETUP_BUFFER(name,rows,cols) static char name[rows*2][(cols+0x7)/8]
+
 typedef enum
 {
     FLIPDOT_SET         = 'X', // steady state set
@@ -13,16 +19,20 @@ typedef enum
     FLIPDOT_NEW_RESET   = 'R', // to be flipped from set -> reset
 } flipdot_states_t;
 
+
+//************************************************************************
+// Exported types
+//************************************************************************
 typedef struct
 {
     int rows; // number of available rows
     int columns; // number of available columns
 
-    // hold current state of flipdot and for use as scratchpad, pointer to buffer which is rows x columns sized
+    /* Hold current state of flipdot and for use as scratchpad.
+     * Must be 2 * x * y bytes in size, where:
+     *  x number of rows
+     *  y number of columns / 8 and rounded up to the next higher integer */
     char* frame_buf;
-
-    // optional, if given use to hold the old framebuffer state
-    char* old_frame_buff;
 
     /* hw abstraction, */
     bool (*write_dot_cb)(int row, int col, char state);
@@ -37,6 +47,9 @@ typedef struct
 extern "C" {
 #endif // __cplusplus
 
+//************************************************************************
+// Exported functions
+//************************************************************************
 // config
 bool flipdot_gfx_init(flipdot_hw_info_t* ptr);
 void flipdot_gfx_set_printmode(bool new_mode);

@@ -6,8 +6,19 @@
 #define FLIPDOT_COLS 28
 
 #define LENGTH_SECONDS_HAND 7
+#define LENGTH_MINUTE_HAND  5
+
 #define CENTER_X_CLOCK 14
 #define CENTER_Y_CLOCK 9
+
+typedef struct
+{
+  int end_sec_x, end_sec_y;
+  int end_min_x, end_min_y;
+  int end_hour_x, end_hour_y;
+} hand_pos_t;
+
+hand_pos_t clock_state;
 
 /* Small custom double point, since otherwise showing time would need too many
  * horizontal flipdots. */
@@ -22,13 +33,13 @@ static const char double_point_2x7[7][2] =
   {' ', ' '}
 };
 
-// as a scratchpad and to hold image (meta) info
-static char frame_buf[FLIPDOT_ROWS*FLIPDOT_COLS];
+// setup double buffered frame
+FLIPDOT_SETUP_BUFFER(frame_buf, FLIPDOT_ROWS, FLIPDOT_COLS);
 
 // init HW UART object
 HardwareSerial customSerial(0);
 
-int sec_count;
+int sec_count, min_count;
 
 /* Just a dummy */
 bool write_dot_wrapper(int row, int col, char state)
@@ -38,9 +49,18 @@ bool write_dot_wrapper(int row, int col, char state)
 
 bool write_row_wrapper(int row, char* states)
 {
-   char printbuf[64];
+  char printbuf[64];
   int size = snprintf(printbuf, sizeof(printbuf), "row:%ld: %.28s\n", row, states);
-  customSerial.write(printbuf, size); 
+  customSerial.write(printbuf, size);
+
+  return true;
+}
+
+bool write_col_wrapper(int col, char* states)
+{
+  char printbuf[64];
+  int size = snprintf(printbuf, sizeof(printbuf), "col:%ld: %.19s\n", col, states);
+  customSerial.write(printbuf, size);
 
   return true;
 }
@@ -53,10 +73,10 @@ int print_wrapper(char* buff, int len)
 }
 
 /* Calculate where the next hand position is */
-void calc_hand_pos(int seconds, int length, int* new_x, int* new_y)
+void calc_hand_pos(int degrees, int length, int* new_x, int* new_y)
 {
-  // convert to angle (0s -> 0°, 60s -> 360*) and then to radians
-  float angle = (float)(seconds * 6 * 2 * PI) / 360.0;
+  // convert to radians
+  float angle = (PI * 2 * degrees) / 360.0;
 
   // sin(angle) = new_x / length -> new_x = sin(angle) * length
   // cos(angle) = new_y / length -> new_y = cos(angle) * length
@@ -74,12 +94,12 @@ void setup()
   customSerial.begin(115200, SERIAL_8N1, 36, 35); // use HW UART
 
   flipdot_hw_info_t config = {
-    .rows       = FLIPDOT_ROWS,
-    .columns    = FLIPDOT_COLS,
-    .frame_buf  = frame_buf,
+    .rows           = FLIPDOT_ROWS,
+    .columns        = FLIPDOT_COLS,
+    .frame_buf      = &frame_buf[0][0],
 
-    .write_dot_cb     = NULL, //write_dot_wrapper,
-    .write_column_cb  = NULL,
+    //.write_dot_cb     = write_dot_wrapper,
+    //.write_column_cb  = write_col_wrapper,
     .write_row_cb     = write_row_wrapper,
 
     .print            = print_wrapper,
@@ -124,7 +144,7 @@ void setup()
 /* Basic clock example */
 void loop()
 {
-  int end_x = 0, end_y = 0;
+  bool first_run = true;
 
   /* Setup clock face */
   flipdot_gfx_fill(false, false);  // "soft clear"
@@ -133,20 +153,31 @@ void loop()
 
   while (1)
   {
-    if (end_x && end_y) // only when at least once calculated
+    if (first_run)
+    {
+      first_run = false;
+    }
+    else // only when at least once calculated
     {
       /* Erase the old line */
       flipdot_gfx_set_printmode(true);
-      flipdot_gfx_draw_line(CENTER_X_CLOCK, CENTER_Y_CLOCK, end_x, end_y);
+      flipdot_gfx_draw_line(CENTER_X_CLOCK, CENTER_Y_CLOCK, clock_state.end_sec_x, clock_state.end_sec_y);
+      flipdot_gfx_draw_line(CENTER_X_CLOCK, CENTER_Y_CLOCK, clock_state.end_min_x, clock_state.end_min_y);
+      //flipdot_gfx_draw_line(CENTER_X_CLOCK, CENTER_Y_CLOCK, clock_state.end_hour_x, clock_state.end_hour_y);
     }
 
-    calc_hand_pos(sec_count, LENGTH_SECONDS_HAND, &end_x, &end_y);
-    end_x += CENTER_X_CLOCK;
-    end_y += CENTER_Y_CLOCK;
+    calc_hand_pos(sec_count * 6, LENGTH_SECONDS_HAND, &clock_state.end_sec_x, &clock_state.end_sec_y);
+    clock_state.end_sec_x += CENTER_X_CLOCK;
+    clock_state.end_sec_y += CENTER_Y_CLOCK;
+  
+    calc_hand_pos(min_count * 6, LENGTH_MINUTE_HAND, &clock_state.end_min_x, &clock_state.end_min_y);
+    clock_state.end_min_x += CENTER_X_CLOCK;
+    clock_state.end_min_y += CENTER_Y_CLOCK;
     
     /* Draw a new one in slightly different position */
     flipdot_gfx_set_printmode(false);
-    flipdot_gfx_draw_line(CENTER_X_CLOCK, CENTER_Y_CLOCK, end_x, end_y);
+    flipdot_gfx_draw_line(CENTER_X_CLOCK, CENTER_Y_CLOCK, clock_state.end_sec_x, clock_state.end_sec_y);
+    flipdot_gfx_draw_line(CENTER_X_CLOCK, CENTER_Y_CLOCK, clock_state.end_min_x, clock_state.end_min_y);
     flipdot_gfx_write_framebuf();
 
     delay(1000);
@@ -154,6 +185,11 @@ void loop()
     if (sec_count >= 60)
     {
       sec_count = 0;
+      min_count++;
+      if (min_count >= 60)
+      {
+        min_count = 0;
+      }
     }
   }
 }

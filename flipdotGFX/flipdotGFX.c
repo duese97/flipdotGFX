@@ -4,9 +4,11 @@
 #include <flipdotGFX.h>
 #include <characterROM.h>
 
-/* Local macros */
-#define SGN(_x) ((_x) < 0 ? -1 : ((_x) > 0 ? 1 : 0))
 
+//************************************************************************
+// Local macros
+//************************************************************************
+#define SGN(_x)         ((_x) < 0 ? -1 : ((_x) > 0 ? 1 : 0))
 
 //************************************************************************
 // Local variables
@@ -17,16 +19,23 @@ static flipdot_hw_info_t hw_info;   // local copy of given HW info struct
 static int curr_cursor_x;
 static int curr_cursor_y;
 
-// to avoid having to multiple rows * columns over and over
-static int num_dots;
+// to avoid having to calculate number of column bytes over and over
+static int num_col_bytes;
+
+// to avoid calculating over and over length of framebuf
+static int num_framebuf_bytes;
 
 // if true, drawing will be be inverted
 static bool print_inverted = false;
 
+static char* scratchpad;
+static char* curr_state;
+
 //************************************************************************
 // Local functions/helpers declarations
 //************************************************************************
-static bool flipdot_gfx_check_rewrite(char* buff);
+static inline flipdot_states_t flipdot_gfx_cmp_bits(bool old, bool new);
+static inline bool flipdot_gfx_get_bit(int row, int col, char* framebuf);
 
 
 //************************************************************************
@@ -56,8 +65,13 @@ bool flipdot_gfx_init(flipdot_hw_info_t* ptr)
 
     hw_info = *ptr; // copy values into RAM
 
-    // determine number of dots used
-    num_dots = hw_info.rows * hw_info.columns;
+    // determine number of bytes used
+    num_col_bytes = (hw_info.columns + 0x7) / 8;
+    num_framebuf_bytes = num_col_bytes * hw_info.rows;
+
+    // split given buffer for use as scratchpad and to hold current state
+    scratchpad = hw_info.frame_buf;
+    curr_state = scratchpad + num_framebuf_bytes;
 
     return true;
 }
@@ -69,15 +83,16 @@ bool flipdot_gfx_init(flipdot_hw_info_t* ptr)
  */
 void flipdot_gfx_draw_point(int x, int y)
 {
-    char* buff = &hw_info.frame_buf[y * hw_info.columns + x];
-    flipdot_states_t new_state = print_inverted ? FLIPDOT_NEW_RESET : FLIPDOT_NEW_SET;
+    int bytepos_x = x / 8, bitpos_x = x & 0x7;
+    char* buff = scratchpad + (y * num_col_bytes + bytepos_x);
 
-    // check if a write is needed
-    if ((*buff == FLIPDOT_SET && new_state == FLIPDOT_NEW_RESET) ||
-        (*buff == FLIPDOT_RESET && new_state == FLIPDOT_NEW_SET) ||
-        (*buff != new_state)) // overwrite old state
+    if (print_inverted)
     {
-        *buff = new_state;
+       *buff &=  ~(1 << bitpos_x);
+    }
+    else
+    {
+        *buff |=  (1 << bitpos_x);
     }
 };
 
@@ -99,26 +114,14 @@ void flipdot_gfx_set_printmode(bool new_mode)
  */
 bool flipdot_gfx_fill(bool state, bool force)
 {
-    if (force) // set new elements anyway
+    // write scratchpad in any case
+    memset(scratchpad, state ? 0xFF : 0x00, num_framebuf_bytes);
+
+    if (force) // write old buffer with opposite value, so we definitely get a rewrite
     {
-        memset(hw_info.frame_buf, state ? FLIPDOT_NEW_SET : FLIPDOT_NEW_RESET, num_dots);
+        memset(curr_state, state ? 0x00 : 0xFF, num_framebuf_bytes);
     }
-    else
-    {
-        // iterate over entire framebuffer
-        for (int idx = 0; idx < num_dots; idx++)
-        {
-            // check if element really has to be set
-            if (state && hw_info.frame_buf[idx] != FLIPDOT_SET)
-            {
-                 hw_info.frame_buf[idx] = FLIPDOT_NEW_SET;
-            }
-            else if (!state && hw_info.frame_buf[idx] != FLIPDOT_RESET)
-            {
-                hw_info.frame_buf[idx] = FLIPDOT_NEW_RESET;
-            }
-        }
-    }
+
     return flipdot_gfx_write_framebuf();
 }
 
@@ -132,25 +135,34 @@ void flipdot_gfx_dbg_print_framebuf(void)
         return;
     }
 
-    char separator[hw_info.columns];
-    char newline = '\n';
-    memset(separator, '-', hw_info.columns);
+    char linebuffer[hw_info.columns + 1]; // + 1 for newline
+    
+    memset(linebuffer, '-', hw_info.columns);
+    linebuffer[hw_info.columns] = '\n';
     
     // print top edge
-    hw_info.print(separator, hw_info.columns);
-    hw_info.print(&newline, 1);
+    hw_info.print(linebuffer, hw_info.columns + 1);
 
     // show all rows
     for (int row = 0; row < hw_info.rows; row++)
     {
-        // copy over data
-        hw_info.print(&hw_info.frame_buf[row * hw_info.columns], hw_info.columns);
-        hw_info.print(&newline, 1);
+        // show column wise
+        for (int col = 0; col < hw_info.columns; col++)
+        {
+            char tmp_bit = flipdot_gfx_get_bit(row, col, scratchpad);
+            char curr_bit = flipdot_gfx_get_bit(row, col, curr_state);
+
+            /* Check state */
+            linebuffer[col] = flipdot_gfx_cmp_bits(curr_bit, tmp_bit);        
+        }
+        linebuffer[hw_info.columns] = '\n';
+        hw_info.print(linebuffer, hw_info.columns + 1);
     }
     
     // print bottom edge
-    hw_info.print(separator, hw_info.columns);
-    hw_info.print(&newline, 1);
+    memset(linebuffer, '-', hw_info.columns);
+    linebuffer[hw_info.columns] = '\n';
+    hw_info.print(linebuffer, hw_info.columns + 1);
 }
 
 /** @brief set top right upper corner of whatever shall be printed next
@@ -335,8 +347,12 @@ void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
     {
         for (int current_x = curr_cursor_x; (current_x < curr_cursor_x + len_x) && (current_x < hw_info.columns); current_x++)
         {
+            // get byte and bit position in buffer
+            int x_bytepos = current_x / 8, x_bitpos = current_x & 0x7;
+
             // get current char of frame buffer
-            char* frame_ptr = &hw_info.frame_buf[current_y * hw_info.columns + current_x];
+            char* frame_ptr = scratchpad + (current_y * num_col_bytes + x_bytepos);
+
             // index new char which shall be written to buffer, but within coordinates of bitmap
             char bmp_char = bitmap[(current_y-curr_cursor_y) * len_x + (current_x-curr_cursor_x)];
 
@@ -345,22 +361,13 @@ void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
                 bmp_char = bmp_char == FLIPDOT_SET ? FLIPDOT_RESET : FLIPDOT_SET;
             }
 
-            if (*frame_ptr == bmp_char) // skip if the dot already has the proper state
+            if (bmp_char == FLIPDOT_SET)
             {
-                continue;
+                *frame_ptr |= (1 << x_bitpos);
             }
-            else if (*frame_ptr == FLIPDOT_SET && bmp_char == FLIPDOT_RESET) // change state from set -> reset
+            else
             {
-                *frame_ptr = FLIPDOT_NEW_RESET;
-            }
-            else if (*frame_ptr == FLIPDOT_RESET && bmp_char == FLIPDOT_SET) // change state from reset -> set
-            {
-                *frame_ptr = FLIPDOT_NEW_SET;
-            }
-            // something else previously wrote here, overwrite it again
-            else if (*frame_ptr == FLIPDOT_NEW_SET || *frame_ptr == FLIPDOT_NEW_RESET)
-            {
-                *frame_ptr = bmp_char == FLIPDOT_SET ? FLIPDOT_NEW_SET : FLIPDOT_NEW_RESET;
+                *frame_ptr &= ~(1 << x_bitpos);
             }
         }
     }
@@ -399,36 +406,30 @@ bool flipdot_gfx_write_framebuf(void)
 {
     bool ret = true; // to remember overall success
 
-    // if pointer given, check if state has actually changed through multiple subsequent write/clears
-    if (hw_info.old_frame_buff)
-    {
-        for (int idx = 0; idx < num_dots; idx++)
-        {
-            if (hw_info.frame_buf[idx] == FLIPDOT_NEW_SET && hw_info.old_frame_buff[idx] == FLIPDOT_SET)
-            {
-                hw_info.frame_buf[idx] = FLIPDOT_SET; // no set required
-            }
-            else if (hw_info.frame_buf[idx] == FLIPDOT_NEW_RESET && hw_info.old_frame_buff[idx] == FLIPDOT_RESET)
-            {
-                hw_info.frame_buf[idx] = FLIPDOT_RESET; // no reset required
-            }
-        }
-    }
-
     if (hw_info.write_column_cb)
     {
-        char data[hw_info.columns];
+        char data[hw_info.rows];
 
         for (int col = 0; col < hw_info.columns; col++)
         {
+            bool rewriteNeeded = false;
+
             /* collect column data, since it's not continuous in memory */
             for (int row = 0; row < hw_info.rows; row++)
             {
-                data[row] = hw_info.frame_buf[row * hw_info.columns + col];
+                bool newBit = flipdot_gfx_get_bit(row, col, scratchpad);
+                bool oldBit = flipdot_gfx_get_bit(row, col, curr_state);
+
+                data[row] = flipdot_gfx_cmp_bits(oldBit, newBit);
+                
+                if (newBit != oldBit)
+                {
+                    rewriteNeeded = true;
+                }
             }
 
             // determine if a rewrite is even needed
-            if (flipdot_gfx_check_rewrite(data) == false)
+            if (rewriteNeeded == false)
             {
                 continue;
             }
@@ -438,15 +439,21 @@ bool flipdot_gfx_write_framebuf(void)
     }
     else
     {
+        char data[hw_info.columns];
+
         for (int row = 0; row < hw_info.rows; row++)
         {
+            bool rewriteNeeded = false;
+
             for (int col = 0; col < hw_info.columns; col++)
             {
-                // helper to shorten access to array
-                char* startPtr = &hw_info.frame_buf[row * hw_info.columns + col];
+                bool newBit = flipdot_gfx_get_bit(row, col, scratchpad);
+                bool oldBit = flipdot_gfx_get_bit(row, col, curr_state);
+
+                data[col] = flipdot_gfx_cmp_bits(oldBit, newBit);
 
                 // determine if a rewrite is even needed
-                if (flipdot_gfx_check_rewrite(startPtr) == false)
+                if (newBit == oldBit)
                 {
                     continue;
                 }
@@ -454,38 +461,24 @@ bool flipdot_gfx_write_framebuf(void)
                 // check with scheme shall be used to update flipdot with frame buffer
                 if (hw_info.write_dot_cb)
                 {
-                    ret &= hw_info.write_dot_cb(row, col, *startPtr);
+                    ret &= hw_info.write_dot_cb(row, col, data[0]);
                 }
-                else if (hw_info.write_row_cb)
-                {
-                    ret &= hw_info.write_row_cb(row, startPtr);
-                    break;
-                }
+
+                rewriteNeeded = true;
+            }
+
+            if (hw_info.write_row_cb && rewriteNeeded)
+            {
+                ret &= hw_info.write_row_cb(row, data);
             }
         }
     }
 
     // output result for debugging
-    //flipdot_gfx_dbg_print_framebuf();
+    // flipdot_gfx_dbg_print_framebuf();
 
     // set buffer to "steady state", so that driver callbacks could utilize meta states previously
-    for (int idx = 0; idx < hw_info.columns * hw_info.rows; idx++)
-    {
-        if (hw_info.frame_buf[idx] == FLIPDOT_NEW_SET)
-        {
-            hw_info.frame_buf[idx] = FLIPDOT_SET;
-        }
-        else if (hw_info.frame_buf[idx] == FLIPDOT_NEW_RESET)
-        {
-            hw_info.frame_buf[idx] = FLIPDOT_RESET;
-        }
-
-        // if pointer given, remember state from scratchpad
-        if (hw_info.old_frame_buff)
-        {
-            hw_info.old_frame_buff[idx] = hw_info.frame_buf[idx];
-        }
-    }
+    memcpy(curr_state, scratchpad, num_framebuf_bytes);
 
     // output result for debugging
     flipdot_gfx_dbg_print_framebuf();
@@ -498,37 +491,37 @@ bool flipdot_gfx_write_framebuf(void)
 // Private functions
 //************************************************************************
 
-/** @brief checks if a rewrite is required, depending on write scheme
+/** @brief compare old and new framebuffer bits
  *
- *  @param buff pointer to single dot/row or column buffer
- *  @return true if rewrite is needed, false otherwise
+ *  @param old previous bit state
+ *  @param new desired upcoming bit state
+ *  @return a value of flipdot_states_t which reflects next action
  */
-static bool flipdot_gfx_check_rewrite(char* buff)
+static inline flipdot_states_t flipdot_gfx_cmp_bits(bool old, bool new)
 {
-    int size; // to remember how many elements need to be checked
-
-    // find out size
-    if (hw_info.write_dot_cb)
+    if (old == new)
     {
-        size = 1;
+        return old ? FLIPDOT_SET : FLIPDOT_RESET;
     }
-    else if (hw_info.write_column_cb)
+    else if (old && !new)
     {
-        size = hw_info.columns;
+        return FLIPDOT_NEW_RESET;
     }
     else
     {
-        size = hw_info.rows;
+        return FLIPDOT_NEW_SET;
     }
+}
 
-    for (int idx = 0; idx < size; idx++) // step over buffer
-    {
-        // check if anything new has to be set or reset
-        if (buff[idx] == FLIPDOT_NEW_SET || buff[idx] == FLIPDOT_NEW_RESET)
-        {
-            return true;
-        }
-    }
-
-    return false; // nothing found
+/** @brief get the state of a flipdot from a frame buffer
+ *
+ *  @param row y coordinate
+ *  @param col x coordinate
+ *  @param framebuf pointer to respective buffer
+ *  @return false if bit is not set, true otherwise
+ */
+static inline bool flipdot_gfx_get_bit(int row, int col, char* framebuf)
+{
+    /* mask out current bit */
+    return framebuf[row * num_col_bytes + (col / 8)] & ( 1 << (col & 0x7));
 }
