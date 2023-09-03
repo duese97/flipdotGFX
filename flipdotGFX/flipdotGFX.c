@@ -172,11 +172,8 @@ void flipdot_gfx_dbg_print_framebuf(void)
  */
 void flipdot_gfx_set_cursor(int row, int col)
 {
-    if (row < hw_info.rows && col < hw_info.columns)
-    {
-        curr_cursor_y = row;
-        curr_cursor_x = col;
-    }
+    curr_cursor_y = row;
+    curr_cursor_x = col;
 }
 
 /** @brief relative set top right upper corner of whatever shall be printed next
@@ -188,25 +185,6 @@ void flipdot_gfx_set_cursor_relative(int row, int col)
 {
     curr_cursor_y += row;
     curr_cursor_x += col;
-
-    /* Make sure cursor is within bounds of frame */
-    if (curr_cursor_y >= hw_info.rows)
-    {
-        curr_cursor_y = hw_info.rows - 1;
-    }
-    else if (curr_cursor_y < 0)
-    {
-        curr_cursor_y = 0;
-    }
-
-    if (curr_cursor_x >=hw_info.columns )
-    {
-        curr_cursor_x = hw_info.columns  - 1;
-    }
-    else if (curr_cursor_x < 0)
-    {
-        curr_cursor_x = 0;
-    }
 }
 
 
@@ -339,13 +317,35 @@ void flipdot_gfx_draw_line(int x0, int y0, int x1, int y1)
  *  @param len_x length of bitmap in x direction
  *  @param len_y length of bitmap in y direction
  *  @param move_cursor true if cursor is automatically advanced by len_x
+ * 
+ *  @return true if at least something could be copied, false otherwise
  */
-void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool move_cursor)
+bool flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool move_cursor)
 {
-    /* Iterate over the framebuffer left to right and top to down */   
-    for (int current_y = curr_cursor_y; (current_y < curr_cursor_y + len_y) && (current_y < hw_info.rows); current_y++)
+    /* Check if start coordinates make sense */
+    if (curr_cursor_y >= hw_info.rows || curr_cursor_x >= hw_info.columns)
     {
-        for (int current_x = curr_cursor_x; (current_x < curr_cursor_x + len_x) && (current_x < hw_info.columns); current_x++)
+        return false;
+    }
+    /* Check if even some parts are on the buffer */
+    else if (curr_cursor_y + len_y < 0 || curr_cursor_x + len_x < 0)
+    {
+        return false;
+    }
+
+    /* check if the start is within buffer, if not we can skip over negative parts */
+    int start_x = curr_cursor_x < 0 ? 0 : curr_cursor_x;
+    int start_y = curr_cursor_y < 0 ? 0 : curr_cursor_y;
+
+    /* check where we have to end copying over */
+    int end_x = curr_cursor_x + len_x >= hw_info.columns ? hw_info.columns : curr_cursor_x + len_x;
+    int end_y = curr_cursor_y + len_y >= hw_info.rows ? hw_info.rows : curr_cursor_y + len_y;
+
+    /* Iterate over the framebuffer left to right and top to down. I could be possible that bitmap only
+     * partially lies on the buffer. */   
+    for (int current_y = start_y; current_y < end_y; current_y++)
+    {
+        for (int current_x = start_x; current_x < end_x; current_x++)
         {
             // get byte and bit position in buffer
             int x_bytepos = current_x / 8, x_bitpos = current_x & 0x7;
@@ -374,8 +374,10 @@ void flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
 
     if (move_cursor)
     {
-        flipdot_gfx_set_cursor_relative(0, len_x);
+        flipdot_gfx_set_cursor_relative(0, end_x - start_x);
     }
+
+    return true;
 }
 
 /** @brief write a 5x7 char to the buffer
@@ -484,6 +486,75 @@ bool flipdot_gfx_write_framebuf(void)
     flipdot_gfx_dbg_print_framebuf();
 
     return ret;
+}
+
+
+/** @brief write a 5x7 char to the buffer
+ *
+ *  @param format NULL terminated string to write
+ */
+void flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift)
+{
+    static int start_cursor = 0;
+    int len = strlen(format) * (5 + 1); // check how long string is and how many dots it takes
+    
+    bool start_over = (shift_step > 0 && start_cursor >= hw_info.columns); // stop when start of dots is in right side
+    start_over |= (shift_step < 0 && curr_cursor_x < 0); // stop when end of dots is on left side
+    
+    if (first_shift) // check if initial frame is set up
+    {
+        start_cursor = curr_cursor_x;
+    }
+    else if (!start_over) // there is some data left on the display, shift it
+    {
+        start_cursor += shift_step;
+    }
+    /* can start to bring in new characters again */
+    else if (shift_step > 0) // shift to the right, have to start over from left 
+    {
+        start_cursor = -len; // let cursor start from the very left
+    }
+    else // shift to the left, start over from right
+    {
+        start_cursor = hw_info.columns - 1;
+    }
+
+    int idx = 0;
+    if (start_cursor < -5) // skip "useless" characters which are too far to the left
+    {
+        idx = abs(start_cursor) / 6; // first char to print
+        flipdot_gfx_set_cursor(curr_cursor_y, start_cursor + idx * 6); // move cursor respectively
+    }
+    else
+    {
+        // update our current cursor
+        flipdot_gfx_set_cursor(curr_cursor_y, start_cursor);
+    }
+
+
+    flipdot_gfx_fill(print_inverted, false); // clear out from previous writes
+
+    while(format[idx] != '\0') // iterate as long as chars are there
+    {
+        if (curr_cursor_x >= hw_info.columns) // print from left to right, stop if we are beyond buffer
+        {
+            return;
+        }
+        else // possible to print at least one dot into frame
+        {
+            int old_x = curr_cursor_x; // remember old cursor pos
+            int remaining_shift;
+
+            char tmp_buff[2] = {format[idx], '\0'}; // to re-use the line write function
+            flipdot_gfx_write_5x7_line(tmp_buff);
+
+            // check by how much we have to force the cursor to the right
+            remaining_shift = 6 - (curr_cursor_x - old_x);
+            flipdot_gfx_set_cursor_relative(0, remaining_shift);
+        }
+
+        idx++; // jump to next char
+    }
 }
 
 
