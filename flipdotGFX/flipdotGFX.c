@@ -492,18 +492,22 @@ bool flipdot_gfx_write_framebuf(void)
 /** @brief write a 5x7 char to the buffer
  *
  *  @param format NULL terminated string to write
+ *  @param shift_step number of dots to shift text per call of this function
+ *  @param first_shift true when this function was initially called
+ * 
+ *  @return true if string is once completely shifted, false otherwise
  */
-void flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift)
+bool flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift)
 {
-    static int start_cursor = 0;
+    static int start_cursor, first_start;
     int len = strlen(format) * (5 + 1); // check how long string is and how many dots it takes
-    
     bool start_over = (shift_step > 0 && start_cursor >= hw_info.columns); // stop when start of dots is in right side
     start_over |= (shift_step < 0 && curr_cursor_x < 0); // stop when end of dots is on left side
     
     if (first_shift) // check if initial frame is set up
     {
         start_cursor = curr_cursor_x;
+        first_start = curr_cursor_x;
     }
     else if (!start_over) // there is some data left on the display, shift it
     {
@@ -531,14 +535,15 @@ void flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift)
         flipdot_gfx_set_cursor(curr_cursor_y, start_cursor);
     }
 
-
-    flipdot_gfx_fill(print_inverted, false); // clear out from previous writes
+    // clear out from previous writes, do it only for affected rows
+    char* start = scratchpad + (curr_cursor_y * num_col_bytes);
+    memset(start, print_inverted ? 0xFF : 0x00, num_col_bytes * 7);
 
     while(format[idx] != '\0') // iterate as long as chars are there
     {
         if (curr_cursor_x >= hw_info.columns) // print from left to right, stop if we are beyond buffer
         {
-            return;
+            break;
         }
         else // possible to print at least one dot into frame
         {
@@ -555,6 +560,8 @@ void flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift)
 
         idx++; // jump to next char
     }
+
+    return ((first_shift == false) && (start_cursor == first_start));
 }
 
 

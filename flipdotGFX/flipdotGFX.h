@@ -62,7 +62,7 @@ bool flipdot_gfx_write_framebuf(void);
 void flipdot_gfx_set_cursor(int row, int col);
 void flipdot_gfx_set_cursor_relative(int row, int col);
 void flipdot_gfx_write_5x7_line(char* format);
-void flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift);
+bool flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift);
 bool flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool move_cursor);
 
 // basic shapes
