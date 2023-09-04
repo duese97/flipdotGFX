@@ -10,4 +10,6 @@
 #define USE_SYMBOLS3_5x7 // ascii [ to `
 #define USE_SYMBOLS4_5x7 // ascii { to ~
 
+#define PREFER_SPEED // if set, will use faster framebuffer calculations at cost of memory
+
 #endif // _FLIPDOT_GFX_CONFIG_H_

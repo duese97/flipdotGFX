@@ -2,12 +2,16 @@
 #define _FLIPDOT_GFX_H_
 
 #include <stdbool.h>
-
+#include <flipdotGFX_config.h>
 
 //************************************************************************
 // Exported macros and enums
 //************************************************************************
+#ifndef PREFER_SPEED
 #define FLIPDOT_SETUP_BUFFER(name,rows,cols) static char name[rows*2][(cols+0x7)/8]
+#else
+#define FLIPDOT_SETUP_BUFFER(name,rows,cols) static char name[rows*2][cols]
+#endif // PREFER_SPEED
 
 typedef enum
 {

@@ -31,11 +31,19 @@ static bool print_inverted = false;
 static char* scratchpad;
 static char* curr_state;
 
+/* Values to fill up the framebuffer with */
+#ifndef PREFER_SPEED
+static const char fillchar_set = 0xFF;
+#else
+static const char fillchar_set = 0x01;
+#endif // PREFER_SPEED
+static const char fillchar_reset = 0x00;
+
 //************************************************************************
 // Local functions/helpers declarations
 //************************************************************************
-static inline flipdot_states_t flipdot_gfx_cmp_bits(bool old, bool new);
-static inline bool flipdot_gfx_get_bit(int row, int col, char* framebuf);
+static inline flipdot_states_t flipdot_gfx_cmp_dots(bool old, bool new);
+static inline bool flipdot_gfx_get_dot(int row, int col, char* framebuf);
 
 
 //************************************************************************
@@ -66,7 +74,11 @@ bool flipdot_gfx_init(flipdot_hw_info_t* ptr)
     hw_info = *ptr; // copy values into RAM
 
     // determine number of bytes used
+#ifndef PREFER_SPEED
     num_col_bytes = (hw_info.columns + 0x7) / 8;
+#else
+    num_col_bytes = hw_info.columns;
+#endif // PREFER_SPEED
     num_framebuf_bytes = num_col_bytes * hw_info.rows;
 
     // split given buffer for use as scratchpad and to hold current state
@@ -83,6 +95,7 @@ bool flipdot_gfx_init(flipdot_hw_info_t* ptr)
  */
 void flipdot_gfx_draw_point(int x, int y)
 {
+#ifndef PREFER_SPEED
     int bytepos_x = x / 8, bitpos_x = x & 0x7;
     char* buff = scratchpad + (y * num_col_bytes + bytepos_x);
 
@@ -94,6 +107,10 @@ void flipdot_gfx_draw_point(int x, int y)
     {
         *buff |=  (1 << bitpos_x);
     }
+#else
+    char* buff = scratchpad + (y * num_col_bytes + x);
+    *buff = !print_inverted;
+#endif // PREFER_SPEED
 };
 
 /** @brief Set behaviour how text and bitmaps shall be printed
@@ -115,11 +132,11 @@ void flipdot_gfx_set_printmode(bool new_mode)
 bool flipdot_gfx_fill(bool state, bool force)
 {
     // write scratchpad in any case
-    memset(scratchpad, state ? 0xFF : 0x00, num_framebuf_bytes);
+    memset(scratchpad, state ? fillchar_set : fillchar_reset, num_framebuf_bytes);
 
     if (force) // write old buffer with opposite value, so we definitely get a rewrite
     {
-        memset(curr_state, state ? 0x00 : 0xFF, num_framebuf_bytes);
+        memset(curr_state, state ? fillchar_reset : fillchar_set, num_framebuf_bytes);
     }
 
     return flipdot_gfx_write_framebuf();
@@ -149,11 +166,11 @@ void flipdot_gfx_dbg_print_framebuf(void)
         // show column wise
         for (int col = 0; col < hw_info.columns; col++)
         {
-            char tmp_bit = flipdot_gfx_get_bit(row, col, scratchpad);
-            char curr_bit = flipdot_gfx_get_bit(row, col, curr_state);
+            char tmp_bit = flipdot_gfx_get_dot(row, col, scratchpad);
+            char curr_bit = flipdot_gfx_get_dot(row, col, curr_state);
 
             /* Check state */
-            linebuffer[col] = flipdot_gfx_cmp_bits(curr_bit, tmp_bit);        
+            linebuffer[col] = flipdot_gfx_cmp_dots(curr_bit, tmp_bit);        
         }
         linebuffer[hw_info.columns] = '\n';
         hw_info.print(linebuffer, hw_info.columns + 1);
@@ -347,8 +364,12 @@ bool flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
     {
         for (int current_x = start_x; current_x < end_x; current_x++)
         {
+#ifndef PREFER_SPEED
             // get byte and bit position in buffer
             int x_bytepos = current_x / 8, x_bitpos = current_x & 0x7;
+#else
+            int x_bytepos = current_x;
+#endif // PREFER_SPEED
 
             // get current char of frame buffer
             char* frame_ptr = scratchpad + (current_y * num_col_bytes + x_bytepos);
@@ -361,6 +382,7 @@ bool flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
                 bmp_char = bmp_char == FLIPDOT_SET ? FLIPDOT_RESET : FLIPDOT_SET;
             }
 
+#ifndef PREFER_SPEED
             if (bmp_char == FLIPDOT_SET)
             {
                 *frame_ptr |= (1 << x_bitpos);
@@ -369,6 +391,9 @@ bool flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
             {
                 *frame_ptr &= ~(1 << x_bitpos);
             }
+#else
+            *frame_ptr = bmp_char == FLIPDOT_SET;
+#endif // PREFER_SPEED
         }
     }
 
@@ -419,12 +444,12 @@ bool flipdot_gfx_write_framebuf(void)
             /* collect column data, since it's not continuous in memory */
             for (int row = 0; row < hw_info.rows; row++)
             {
-                bool newBit = flipdot_gfx_get_bit(row, col, scratchpad);
-                bool oldBit = flipdot_gfx_get_bit(row, col, curr_state);
+                bool newDot = flipdot_gfx_get_dot(row, col, scratchpad);
+                bool oldDot = flipdot_gfx_get_dot(row, col, curr_state);
 
-                data[row] = flipdot_gfx_cmp_bits(oldBit, newBit);
+                data[row] = flipdot_gfx_cmp_dots(oldDot, newDot);
                 
-                if (newBit != oldBit)
+                if (newDot != oldDot)
                 {
                     rewriteNeeded = true;
                 }
@@ -449,10 +474,10 @@ bool flipdot_gfx_write_framebuf(void)
 
             for (int col = 0; col < hw_info.columns; col++)
             {
-                bool newBit = flipdot_gfx_get_bit(row, col, scratchpad);
-                bool oldBit = flipdot_gfx_get_bit(row, col, curr_state);
+                bool newBit = flipdot_gfx_get_dot(row, col, scratchpad);
+                bool oldBit = flipdot_gfx_get_dot(row, col, curr_state);
 
-                data[col] = flipdot_gfx_cmp_bits(oldBit, newBit);
+                data[col] = flipdot_gfx_cmp_dots(oldBit, newBit);
 
                 // determine if a rewrite is even needed
                 if (newBit == oldBit)
@@ -537,7 +562,7 @@ bool flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift)
 
     // clear out from previous writes, do it only for affected rows
     char* start = scratchpad + (curr_cursor_y * num_col_bytes);
-    memset(start, print_inverted ? 0xFF : 0x00, num_col_bytes * 7);
+    memset(start, print_inverted ? fillchar_set : fillchar_reset, num_col_bytes * 7);
 
     while(format[idx] != '\0') // iterate as long as chars are there
     {
@@ -575,7 +600,7 @@ bool flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift)
  *  @param new desired upcoming bit state
  *  @return a value of flipdot_states_t which reflects next action
  */
-static inline flipdot_states_t flipdot_gfx_cmp_bits(bool old, bool new)
+static inline flipdot_states_t flipdot_gfx_cmp_dots(bool old, bool new)
 {
     if (old == new)
     {
@@ -598,8 +623,12 @@ static inline flipdot_states_t flipdot_gfx_cmp_bits(bool old, bool new)
  *  @param framebuf pointer to respective buffer
  *  @return false if bit is not set, true otherwise
  */
-static inline bool flipdot_gfx_get_bit(int row, int col, char* framebuf)
+static inline bool flipdot_gfx_get_dot(int row, int col, char* framebuf)
 {
+#ifndef PREFER_SPEED
     /* mask out current bit */
     return framebuf[row * num_col_bytes + (col / 8)] & ( 1 << (col & 0x7));
+#else
+    return framebuf[row * num_col_bytes + col];
+#endif // PREFER_SPEED
 }
