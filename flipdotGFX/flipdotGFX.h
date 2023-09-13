@@ -46,6 +46,13 @@ typedef struct
     int (*print)(char *buffer, int len);
 } flipdot_hw_info_t;
 
+typedef enum
+{
+    MONOSPACE_5x7,
+#ifdef USE_LAZY_10x14
+    MONOSPACE_10x14_LAZY,   // just an upscaling by factor 2 of the 5x7 font
+#endif // USE_LAZY_10x14
+} flipdot_fonttype_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,8 +72,8 @@ bool flipdot_gfx_write_framebuf(void);
 // text and bitmap stuff
 void flipdot_gfx_set_cursor(int row, int col);
 void flipdot_gfx_set_cursor_relative(int row, int col);
-void flipdot_gfx_write_5x7_line(char* format);
-bool flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift);
+void flipdot_gfx_write_line(char* format, flipdot_fonttype_t font);
+bool flipdot_gfx_shift_line(char* format, int shift_step, bool first_shift, flipdot_fonttype_t font);
 bool flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool move_cursor);
 
 // basic shapes

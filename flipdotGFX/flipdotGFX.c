@@ -10,6 +10,18 @@
 //************************************************************************
 #define SGN(_x)         ((_x) < 0 ? -1 : ((_x) > 0 ? 1 : 0))
 
+
+//************************************************************************
+// Local types
+//************************************************************************
+typedef struct
+{
+    int width;  // amount of space taken in x direction
+    int height; // space in y direction
+    int blank;  // space in between characters
+} fontsize_t;
+
+
 //************************************************************************
 // Local variables
 //************************************************************************
@@ -38,6 +50,15 @@ static const char fillchar_set = 0xFF;
 static const char fillchar_set = 0x01;
 #endif // PREFER_SPEED
 static const char fillchar_reset = 0x00;
+
+static const fontsize_t monospace_lut[] = 
+{
+    [MONOSPACE_5x7]         = {.width = 5, .height = 7, .blank = 1 },
+#ifdef USE_LAZY_10x14
+    [MONOSPACE_10x14_LAZY]  = {.width = 10, .height = 14, .blank = 2 },
+#endif    
+};
+
 
 //************************************************************************
 // Local functions/helpers declarations
@@ -405,21 +426,24 @@ bool flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
     return true;
 }
 
-/** @brief write a 5x7 char to the buffer
+/** @brief write a char to the buffer
  *
  *  @param format NULL terminated string to write
+ *  @param font type of font which shall be written
  */
-void flipdot_gfx_write_5x7_line(char* format)
+void flipdot_gfx_write_line(char* format, flipdot_fonttype_t font)
 {
     int idx = 0;
+    
     while(format[idx] != '\0') // iterate as long as chars are there
     {
-        const char* glyph = get_5x7_bitmap(format[idx]); // obtain bitmap
-        flipdot_gfx_write_bitmap(glyph, 5, 7, true); // write it
+        char tmp[64];
+        const char* glyph = get_monospace_bitmap(format[idx], font); // obtain bitmap
+        flipdot_gfx_write_bitmap(glyph, monospace_lut[font].width, monospace_lut[font].height, true); // write it
 
         // in case letters are not aligned by "monospace" grid, write a vertical blank line
-        glyph = get_1x7_blanking();
-        flipdot_gfx_write_bitmap(glyph, 1, 7, true); // will also advance cursor by a space
+        glyph = get_blanking(font);
+        flipdot_gfx_write_bitmap(glyph, monospace_lut[font].blank, monospace_lut[font].height, true); // will also advance cursor by a space
 
         idx++; // jump to next char
     }
@@ -514,18 +538,20 @@ bool flipdot_gfx_write_framebuf(void)
 }
 
 
-/** @brief write a 5x7 char to the buffer
+/** @brief write lines of text to the buffer and shift it
  *
  *  @param format NULL terminated string to write
  *  @param shift_step number of dots to shift text per call of this function
  *  @param first_shift true when this function was initially called
+ *  @param font type of font which shall be shifted
  * 
  *  @return true if string is once completely shifted, false otherwise
  */
-bool flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift)
+bool flipdot_gfx_shift_line(char* format, int shift_step, bool first_shift, flipdot_fonttype_t font)
 {
     static int start_cursor, first_start;
-    int len = strlen(format) * (5 + 1); // check how long string is and how many dots it takes
+    int eff_char_len = monospace_lut[font].width + monospace_lut[font].blank; // to shorten calculation of blank + width
+    int len = strlen(format) * eff_char_len; // check how long string is and how many dots it takes
     bool start_over = (shift_step > 0 && start_cursor >= hw_info.columns); // stop when start of dots is in right side
     start_over |= (shift_step < 0 && curr_cursor_x < 0); // stop when end of dots is on left side
     
@@ -549,10 +575,10 @@ bool flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift)
     }
 
     int idx = 0;
-    if (start_cursor < -5) // skip "useless" characters which are too far to the left
+    if (start_cursor < -monospace_lut[font].width) // skip "useless" characters which are too far to the left
     {
-        idx = abs(start_cursor) / 6; // first char to print
-        flipdot_gfx_set_cursor(curr_cursor_y, start_cursor + idx * 6); // move cursor respectively
+        idx = abs(start_cursor) / eff_char_len; // first char to print
+        flipdot_gfx_set_cursor(curr_cursor_y, start_cursor + idx * eff_char_len); // move cursor respectively
     }
     else
     {
@@ -562,7 +588,7 @@ bool flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift)
 
     // clear out from previous writes, do it only for affected rows
     char* start = scratchpad + (curr_cursor_y * num_col_bytes);
-    memset(start, print_inverted ? fillchar_set : fillchar_reset, num_col_bytes * 7);
+    memset(start, print_inverted ? fillchar_set : fillchar_reset, num_col_bytes * monospace_lut[font].height);
 
     while(format[idx] != '\0') // iterate as long as chars are there
     {
@@ -576,10 +602,10 @@ bool flipdot_gfx_shift_5x7_line(char* format, int shift_step, bool first_shift)
             int remaining_shift;
 
             char tmp_buff[2] = {format[idx], '\0'}; // to re-use the line write function
-            flipdot_gfx_write_5x7_line(tmp_buff);
+            flipdot_gfx_write_line(tmp_buff, font);
 
             // check by how much we have to force the cursor to the right
-            remaining_shift = 6 - (curr_cursor_x - old_x);
+            remaining_shift = eff_char_len - (curr_cursor_x - old_x);
             flipdot_gfx_set_cursor_relative(0, remaining_shift);
         }
 

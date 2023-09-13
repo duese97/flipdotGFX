@@ -2,15 +2,27 @@
 #include <math.h>
 #include "flipdotGFX.h"
 
+
+//************************************************************************
+// General macros
+//************************************************************************
 #define FLIPDOT_ROWS 19
 #define FLIPDOT_COLS 28
 
+
+//************************************************************************
+// Graphic specific macros
+//************************************************************************
 #define LENGTH_SECONDS_HAND 7
 #define LENGTH_MINUTE_HAND  5
 
 #define CENTER_X_CLOCK 14
 #define CENTER_Y_CLOCK 9
 
+
+//************************************************************************
+// Graphics stuff
+//************************************************************************
 typedef struct
 {
   int end_sec_x, end_sec_y;
@@ -33,20 +45,16 @@ static const char double_point_2x7[7][2] =
   {' ', ' '}
 };
 
+
 // setup double buffered frame
 FLIPDOT_SETUP_BUFFER(frame_buf, FLIPDOT_ROWS, FLIPDOT_COLS);
 
-// init HW UART object
-HardwareSerial customSerial(0);
-
 int sec_count, min_count;
 
-/* Just a dummy */
-bool write_dot_wrapper(int row, int col, char state)
-{
-  return true;
-}
 
+//************************************************************************
+// HW related wrapper functions
+//************************************************************************
 bool write_row_wrapper(int row, char* states)
 {
   char printbuf[64];
@@ -89,19 +97,17 @@ void calc_hand_pos(int degrees, int length, int* new_x, int* new_y)
 }
 
 
+//************************************************************************
+// Application
+//************************************************************************
 void setup()
 {
-  customSerial.begin(115200, SERIAL_8N1, 36, 35); // use HW UART
-
   flipdot_hw_info_t config = {
     .rows           = FLIPDOT_ROWS,
     .columns        = FLIPDOT_COLS,
     .frame_buf      = &frame_buf[0][0],
 
-    //.write_dot_cb     = write_dot_wrapper,
-    //.write_column_cb  = write_col_wrapper,
     .write_row_cb     = write_row_wrapper,
-
     .print            = print_wrapper,
   };
   
@@ -113,8 +119,8 @@ void setup()
 
   /* Write inverted text */
   flipdot_gfx_set_printmode(true);
-  flipdot_gfx_set_cursor(7, 2);
-  flipdot_gfx_write_5x7_line((char*)"TEST");
+  flipdot_gfx_set_cursor(1, 2);
+  flipdot_gfx_write_line((char*)"TEST", MONOSPACE_10x14_LAZY);
   flipdot_gfx_write_framebuf();
   flipdot_gfx_set_printmode(false); // go back to normal mode
 
@@ -122,23 +128,65 @@ void setup()
 
   /* Write some random text for demonstration */
   flipdot_gfx_set_cursor(1, 0);
-  flipdot_gfx_write_5x7_line((char*)"12");
+  flipdot_gfx_write_line((char*)"12", MONOSPACE_5x7);
   flipdot_gfx_write_bitmap(&double_point_2x7[0][0], 2, 7, true);
   flipdot_gfx_set_cursor_relative(0, 1);
-  flipdot_gfx_write_5x7_line((char*)"39");
+  flipdot_gfx_write_line((char*)"39", MONOSPACE_5x7);
   flipdot_gfx_write_framebuf();
 
   flipdot_gfx_set_cursor(11, 0);
-  flipdot_gfx_write_5x7_line((char*)"10%");
+  flipdot_gfx_write_line((char*)"10%", MONOSPACE_5x7);
   flipdot_gfx_write_framebuf();
 
   flipdot_gfx_set_cursor(1, 0);
-  flipdot_gfx_write_5x7_line((char*)"10:28");
+  flipdot_gfx_write_line((char*)"10:28", MONOSPACE_5x7);
   flipdot_gfx_write_framebuf();
 
   /* Draw some basic shapes for demonstration */
   flipdot_gfx_draw_line(0, 9, 27, 9);
   flipdot_gfx_write_framebuf();
+
+  flipdot_gfx_fill(true, false);  // "soft clear"
+  flipdot_gfx_set_printmode(true);
+  flipdot_gfx_draw_line(0, 6, 27, 6);
+  flipdot_gfx_draw_line(0, 14, 27, 14);
+
+  /* Show a very simple string */
+  char* scroll_text = (char*)"hello world";
+  flipdot_gfx_set_cursor(7, 2);
+  flipdot_gfx_shift_line(scroll_text, 1, true, MONOSPACE_5x7);
+  flipdot_gfx_write_framebuf();
+
+  for (int i = 0; i < 50; i++)
+  {
+    flipdot_gfx_shift_line(scroll_text, 1, false, MONOSPACE_5x7);
+    flipdot_gfx_write_framebuf();
+    delay(100);
+  }
+
+  /* Test characters of font */
+  char asciiArr['Z' - 'A' + 2];
+  for (int idx = 0; idx < sizeof(asciiArr) - 1; idx++)
+  {
+    asciiArr[idx] = 'A' + idx;
+  }
+  asciiArr['Z' - 'A' + 1] = '\0';
+
+  flipdot_gfx_set_printmode(false);
+  flipdot_gfx_fill(false, false);  // "soft clear"
+  flipdot_gfx_set_cursor(2, 2);
+  flipdot_gfx_shift_line(asciiArr, -1, true, MONOSPACE_10x14_LAZY);
+  flipdot_gfx_write_framebuf();
+
+  for (int i = 0; ; i++)
+  {
+    if (flipdot_gfx_shift_line(asciiArr, -1, false, MONOSPACE_10x14_LAZY))
+    {
+      break;
+    }
+    
+    flipdot_gfx_write_framebuf();
+  }
 }
 
 /* Basic clock example */

@@ -1,5 +1,6 @@
 #include "characterROM.h"
-#include "flipdotGFX_config.h"
+#include <stddef.h> // for NULL
+#include <string.h> // for memset,..
 
 static const char bitmap_5x7_space[7][5]=
 {
@@ -1198,24 +1199,63 @@ static const char bitmap_1x7_space[7][1] =
     { ' ' }
 };
 
-/** @brief get a 1x7 blank line bitmap
+#ifdef USE_LAZY_10x14
+char bitmap_10x14_buffer[14][10]; // to temporarily hold a upscaled bitmap in RAM
+
+/** @brief convert a given 5x7 bitmap into a 10x14 scaled one
+ * 
+ *  @param orig_ptr pointer to a 5x7 bitmap
+ */
+void convert_5x7_to_10x14(const char* orig_ptr)
+{
+    for (int row = 0; row <= 12; )
+    {
+        for (int col = 0; col <= 8; )
+        {
+            bitmap_10x14_buffer[row][col] = (char)orig_ptr[(row/2) * 5 + col/2];
+            bitmap_10x14_buffer[row][col + 1] = bitmap_10x14_buffer[row][col]; // duplicate column cell which is to the left
+
+            col += 2;
+        }
+        // duplicate row once below
+        memcpy(bitmap_10x14_buffer[row + 1], bitmap_10x14_buffer[row], sizeof(bitmap_10x14_buffer[0]));
+        row += 2; // can iterate over every second row
+    }
+}
+#endif // USE_LAZY_10x14
+
+
+/** @brief get a blank line bitmap
  *  @details might be used to fill space in between characters
  * 
+ *  @param font tye of font to be used
  *  @return pointer to bitmap
  */
-const char* get_1x7_blanking(void)
+const char* get_blanking(flipdot_fonttype_t font)
 {
-    return &bitmap_1x7_space[0][0];
+    const char* ret_ptr = &bitmap_1x7_space[0][0];
+
+#ifdef USE_LAZY_10x14
+    if (font == MONOSPACE_10x14_LAZY)
+    {
+        memset(bitmap_10x14_buffer, ' ', 14 * 2);
+        ret_ptr = (const char*)bitmap_10x14_buffer;
+    }
+#endif // USE_LAZY_10x14
+
+    return ret_ptr;
 }
 
-/** @brief get appropriate 5x7 bitmap for a given (printable) ASCII
+/** @brief get appropriate bitmap for a given (printable) ASCII
  *
  *  @param c character where a bitmap is desired
+ *  @param font type of font to return
  *  @return pointer to bitmap, "?" if unsupported
  */
-const char* get_5x7_bitmap(char c)
+const char* get_monospace_bitmap(char c, flipdot_fonttype_t font)
 {
     char target = c;
+    const char* ret_ptr = NULL;
 
     if (target >= 'a' && target <= 'z')
     {
@@ -1234,66 +1274,70 @@ const char* get_5x7_bitmap(char c)
 #ifdef USE_NUMBERS_5x7
     if (target >= '0' && target <= '9')
     {
-        target -= '0';
-        return bitmaps_5x7_0_9[target];
+        ret_ptr = bitmaps_5x7_0_9[target - '0'];
     }
 #endif // USE_NUMBERS_5x7
 
 #ifdef USE_UPPERCASE_5x7
     if (target >= 'A' && target <= 'Z')
     {
-        target -= 'A';
-        return bitmaps_5x7_A_Z[target];
+        ret_ptr = bitmaps_5x7_A_Z[target - 'A'];
     }
 #endif // USE_UPPERCASE_5x7
 
 #ifdef USE_LOWERCASE_5x7
     if (target >= 'a' && target <= 'z')
     {
-        target -= 'a';
-        return bitmaps_5x7_a_z[target];
+        ret_ptr = bitmaps_5x7_a_z[target - 'a'];
     }
 #endif // USE_LOWERCASE_5x7
 
     if (target == ' ')
     {
-        return &bitmap_5x7_space[0][0];
+        ret_ptr = &bitmap_5x7_space[0][0];
     }
 
 #ifdef USE_SYMBOLS1_5x7
     if (target >= '!' && target <= '/')
     {
-        target -= '!';
-        return bitmaps_5x7_symbols1[target];
+        ret_ptr = bitmaps_5x7_symbols1[target - '!'];
     }
 #endif // USE_SYMBOLS1_5x7
 
 #ifdef USE_SYMBOLS2_5x7
     if (target >= ':' && target <= '@')
     {
-        target -= ':';
-        return bitmaps_5x7_symbols2[target];
+        ret_ptr = bitmaps_5x7_symbols2[target - ':'];
     }
 #endif // USE_SYMBOLS2_5x7
 
 #ifdef USE_SYMBOLS3_5x7
     if (target >= '[' && target <= '_')
     {
-        target -= '[';
-        return bitmaps_5x7_symbols3[target];
+        ret_ptr = bitmaps_5x7_symbols3[target - '['];
     }
 #endif // USE_SYMBOLS3_5x7
 
 #ifdef USE_SYMBOLS4_5x7
     if (target >= '{' && target <= '~')
     {
-        target -= '{';
-        return bitmaps_5x7_symbols4[target];
+        ret_ptr = bitmaps_5x7_symbols4[target - '{'];
     }
 #endif // USE_SYMBOLS4_5x7
 
-    else // unsupported
+    if (ret_ptr == NULL) // unsupported, not yet set
     {
-        return &bitmap_5x7_questionmark[0][0];
+        ret_ptr = &bitmap_5x7_questionmark[0][0];
     }
+
+#ifdef USE_LAZY_10x14
+    if (font == MONOSPACE_10x14_LAZY)
+    {
+        convert_5x7_to_10x14(ret_ptr);
+
+        ret_ptr = (const char*)&bitmap_10x14_buffer[0][0];
+    }
+#endif // USE_LAZY_10x14
+
+    return ret_ptr;
 }

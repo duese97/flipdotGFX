@@ -1,5 +1,5 @@
 # flipdotGFX
-A small and simple "graphics" library for flipdot displays. You can draw your own bitmaps, a pre-defined 5x7 monospace font and basic shapes like lines and circles.
+A small and simple "graphics" library for flipdot displays. You can draw your own bitmaps, a pre-defined 5x7 and 10x14 monospace font and basic shapes like lines and circles.
 
 # Features
 - Designed for quick refresh rates of display. Dot-, row- or column wise writing is supported. Respective driver will only be called, when dots actually have to be flipped.
@@ -19,8 +19,8 @@ Small overview over all public functions:
 - ```flipdot_gfx_fill```: Fill the entire display with a set or reset pattern
 - ```flipdot_gfx_write_framebuf```: Must be called when all frame contents are setup. Will then utilize provided callbacks to build the frame.
 - ```flipdot_gfx_set_cursor``` and ```flipdot_gfx_set_cursor_relative```: Useful for text/bitmap printing, set top right starting corner
-- ```flipdot_gfx_write_5x7_line```: Write a ASCII string with the 5x7 monospace font
-- ```flipdot_gfx_shift_5x7_line```: Same as ```flipdot_gfx_write_5x7_line```, but can shift a arbitrarily long text from left to right or vice versa. Each function call will move the text by the desired amount.
+- ```flipdot_gfx_write_line```: Write a ASCII string with a given monospace font
+- ```flipdot_gfx_shift_line```: Same as ```flipdot_gfx_write_line```, but can shift a arbitrarily long text from left to right or vice versa. Each function call will move the text by the desired amount.
 - ```flipdot_gfx_write_bitmap```: Write an arbitrary (user created) bitmap. It must be setup like this:
 ```
 static const char double_point_2x7[7][2] =

@@ -1,7 +1,9 @@
 #ifndef _CHARACTER_ROM_H_
 #define _CHARACTER_ROM_H_
 
-const char* get_5x7_bitmap(char c);
-const char* get_1x7_blanking(void);
+#include "flipdotGFX.h"
+
+const char* get_monospace_bitmap(char c, flipdot_fonttype_t font);
+const char* get_blanking(flipdot_fonttype_t font);
 
 #endif // _CHARACTER_ROM_H_
