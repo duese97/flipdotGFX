@@ -159,8 +159,6 @@ bool flipdot_gfx_fill(bool state, bool force)
     {
         memset(curr_state, state ? fillchar_reset : fillchar_set, num_framebuf_bytes);
     }
-
-    return flipdot_gfx_write_framebuf();
 }
 
 /** @brief Show the framebuffer via provided print callback to a console etc.
@@ -379,11 +377,13 @@ bool flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
     int end_x = curr_cursor_x + len_x >= hw_info.columns ? hw_info.columns : curr_cursor_x + len_x;
     int end_y = curr_cursor_y + len_y >= hw_info.rows ? hw_info.rows : curr_cursor_y + len_y;
 
+    int current_x;
+
     /* Iterate over the framebuffer left to right and top to down. I could be possible that bitmap only
      * partially lies on the buffer. */   
     for (int current_y = start_y; current_y < end_y; current_y++)
     {
-        for (int current_x = start_x; current_x < end_x; current_x++)
+        for (current_x = start_x; current_x < end_x; current_x++)
         {
 #ifndef PREFER_SPEED
             // get byte and bit position in buffer
@@ -420,7 +420,7 @@ bool flipdot_gfx_write_bitmap(const char* bitmap, int len_x, int len_y, bool mov
 
     if (move_cursor)
     {
-        flipdot_gfx_set_cursor_relative(0, end_x - start_x);
+        flipdot_gfx_set_cursor(curr_cursor_y, current_x);
     }
 
     return true;
@@ -437,7 +437,6 @@ void flipdot_gfx_write_line(char* format, flipdot_fonttype_t font)
     
     while(format[idx] != '\0') // iterate as long as chars are there
     {
-        char tmp[64];
         const char* glyph = get_monospace_bitmap(format[idx], font); // obtain bitmap
         flipdot_gfx_write_bitmap(glyph, monospace_lut[font].width, monospace_lut[font].height, true); // write it
 
@@ -550,6 +549,7 @@ bool flipdot_gfx_write_framebuf(void)
 bool flipdot_gfx_shift_line(char* format, int shift_step, bool first_shift, flipdot_fonttype_t font)
 {
     static int start_cursor, first_start;
+    static bool first_wraparound = false;
     int eff_char_len = monospace_lut[font].width + monospace_lut[font].blank; // to shorten calculation of blank + width
     int len = strlen(format) * eff_char_len; // check how long string is and how many dots it takes
     bool start_over = (shift_step > 0 && start_cursor >= hw_info.columns); // stop when start of dots is in right side
@@ -557,6 +557,7 @@ bool flipdot_gfx_shift_line(char* format, int shift_step, bool first_shift, flip
     
     if (first_shift) // check if initial frame is set up
     {
+        first_wraparound = false;
         start_cursor = curr_cursor_x;
         first_start = curr_cursor_x;
     }
@@ -567,15 +568,17 @@ bool flipdot_gfx_shift_line(char* format, int shift_step, bool first_shift, flip
     /* can start to bring in new characters again */
     else if (shift_step > 0) // shift to the right, have to start over from left 
     {
+        first_wraparound = true;
         start_cursor = -len; // let cursor start from the very left
     }
     else // shift to the left, start over from right
     {
+        first_wraparound = true;
         start_cursor = hw_info.columns - 1;
     }
 
     int idx = 0;
-    if (start_cursor < -monospace_lut[font].width) // skip "useless" characters which are too far to the left
+    if (start_cursor < -(monospace_lut[font].width)) // skip "useless" characters which are too far to the left
     {
         idx = abs(start_cursor) / eff_char_len; // first char to print
         flipdot_gfx_set_cursor(curr_cursor_y, start_cursor + idx * eff_char_len); // move cursor respectively
@@ -612,7 +615,18 @@ bool flipdot_gfx_shift_line(char* format, int shift_step, bool first_shift, flip
         idx++; // jump to next char
     }
 
-    return ((first_shift == false) && (start_cursor == first_start));
+    if (first_wraparound && shift_step < 0 && start_cursor < first_start)
+    {
+        return true;
+    }
+    else if (first_wraparound && shift_step > 0 && start_cursor > first_start)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 
